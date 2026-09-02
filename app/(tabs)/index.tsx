@@ -29,7 +29,7 @@ export default function RenterScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>TruckTaxi</Text>
+      <Text style={styles.title}>Laster</Text>
       <Text style={styles.subtitle}>Please enter trip details</Text>
 
       <View style={styles.card}>

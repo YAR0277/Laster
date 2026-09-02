@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "trucktaxi",
-    "slug": "trucktaxi",
+    "name": "Laster",
+    "slug": "Laster",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "trucktaxi",
+    "scheme": "laster",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
