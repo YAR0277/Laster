@@ -1,96 +1,82 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import {
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { styles } from '../../components/styles';
 
-export default function HomeScreen() {
+
+export default function RenterScreen() {
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [fare, setFare] = useState<number | null>(null);
+  const [status, setStatus] = useState('Not submitted');
+
+  const requestTrip = () => {
+    // Temporary fare calculation
+    const randomFare = Math.floor(Math.random() * 76) + 25;
+
+    setFare(randomFare);
+    setStatus('Requested');
+  };
+
+  const abortTrip = () => {
+    setStatus('Aborted');
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Truck Taxi</ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={styles.container}>
+      <Text style={styles.title}>TruckTaxi</Text>
+      <Text style={styles.subtitle}>Please enter trip details</Text>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <View style={styles.card}>
+
+        <Text style={styles.label}>From</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter starting address"
+          placeholderTextColor="#888"
+          value={from}
+          onChangeText={setFrom}
+        />
+
+        <Text style={styles.label}>To</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter destination address"
+          placeholderTextColor="#888"
+          value={to}
+          onChangeText={setTo}
+        />
+
+        <Text style={styles.label}>Fare</Text>
+        <View style={styles.readOnlyField}>
+          <Text style={styles.readOnlyText}>
+            {fare !== null ? `$${fare.toFixed(2)}` : 'Calculated by App'}
+          </Text>
+        </View>
+
+        <Text style={styles.label}>Status</Text>
+        <View style={styles.readOnlyField}>
+          <Text style={styles.readOnlyText}>{status}</Text>
+        </View>
+
+        {status === 'Not submitted' && (
+          <Pressable style={styles.button} onPress={requestTrip}>
+            <Text style={styles.buttonText}>Request Trip</Text>
+          </Pressable>
+        )}
+
+        {status === 'Requested' && (
+          <Pressable style={styles.abortButton} onPress={abortTrip}>
+            <Text style={styles.buttonText}>Abort Trip</Text>
+          </Pressable>
+        )}
+
+      </View>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
