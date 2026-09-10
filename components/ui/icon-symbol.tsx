@@ -1,12 +1,13 @@
 // Fallback for using MaterialIcons on Android and web.
 
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { SymbolWeight, SymbolViewProps } from 'expo-symbols';
+import { SymbolViewProps, SymbolWeight } from 'expo-symbols';
 import { ComponentProps } from 'react';
 import { OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native';
 
 type IconMapping = Record<SymbolViewProps['name'], ComponentProps<typeof MaterialIcons>['name']>;
-type IconSymbolName = keyof typeof MAPPING;
+type IconSymbolName = keyof typeof MAPPING | 'car-pickup';
 
 /**
  * Add your SF Symbols to Material Icons mappings here.
@@ -15,11 +16,16 @@ type IconSymbolName = keyof typeof MAPPING;
  */
 const MAPPING = {
   'house.fill': 'home',
+  'person.fill': 'person',
+  'car.fill': 'directions-car',
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
 } as IconMapping;
 
+const COMMUNITY_MAPPING = {
+  'car-pickup': 'car-pickup',
+} as const;
 /**
  * An icon component that uses native SF Symbols on iOS, and Material Icons on Android and web.
  * This ensures a consistent look across platforms, and optimal resource usage.
@@ -37,5 +43,11 @@ export function IconSymbol({
   style?: StyleProp<TextStyle>;
   weight?: SymbolWeight;
 }) {
+
+  if (name === 'car-pickup'){
+    return (
+      <MaterialCommunityIcons color={color} size = {size} name="car-pickup" style={style} />
+    );
+  }
   return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
 }

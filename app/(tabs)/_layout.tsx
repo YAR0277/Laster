@@ -10,26 +10,45 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarButton: HapticTab,
+          tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+          tabBarInactiveTintColor:
+            colorScheme === 'dark' ? '#B0B0B0' : '#666666',
+        }}>
+
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="house.fill" color={color} />
+          ),
         }}
       />
+
       <Tabs.Screen
-        name="explore"
+        name="customer"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Customer',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="person.fill" color={color} />
+          ),
         }}
       />
+
+      <Tabs.Screen
+        name="driver"
+        options={{
+          title: 'Driver',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="car-pickup" color={color} />
+          ),
+        }}
+      />
+
     </Tabs>
   );
 }
