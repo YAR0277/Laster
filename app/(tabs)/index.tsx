@@ -29,7 +29,7 @@ export default function HomeScreen() {
 
         <View style={indexStyles.headerBrand}>
           <Image
-            source={require('../../assets/images/laster-icon.png')}
+            source={require('../../assets/images/laster-icon-transparent.png')}
             style={indexStyles.headerLogo}
           />
 
@@ -122,7 +122,7 @@ export default function HomeScreen() {
 
           <MaterialCommunityIcons
             name="chevron-right"
-            size={30}
+            size={24}
             color="#B8BCC4"
           />
         </View>
@@ -134,7 +134,7 @@ export default function HomeScreen() {
           <View style={[indexStyles.statIconCircle, indexStyles.distanceIcon]}>
             <MaterialCommunityIcons
               name="road-variant"
-              size={32}
+              size={26}
               color="#E8EDF5"
             />
           </View>
@@ -146,7 +146,7 @@ export default function HomeScreen() {
 
           <MaterialCommunityIcons
             name="chevron-right"
-            size={30}
+            size={26}
             color="#B8BCC4"
           />
         </View>
@@ -196,7 +196,7 @@ export default function HomeScreen() {
               style={indexStyles.menuItem}
               onPress={() => {
                 setMenuVisible(false);
-                router.push('/account-customer');
+                router.push('/customer_account');
               }}
             >
               <Text style={indexStyles.menuItemText}>Customer Account</Text>
@@ -206,7 +206,7 @@ export default function HomeScreen() {
               style={indexStyles.menuItem}
               onPress={() => {
                 setMenuVisible(false);
-                router.push('/account-driver');
+                router.push('/driver_account');
               }}
             >
               <Text style={indexStyles.menuItemText}>Driver Account</Text>

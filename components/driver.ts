@@ -12,12 +12,6 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 
-  pageTitle: {
-    fontSize: 30,
-    fontWeight: '500',
-    color: '#F5F5F5',
-  },
-
   pageSubtitle: {
     fontSize: 15,
     color: '#8F96A3',
@@ -67,7 +61,7 @@ export const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#328F7D',
+    backgroundColor: '#F59E0B',
   },
 
   accountButton: {
@@ -77,37 +71,10 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
   },  
 
-  abortButton: {
-    marginTop: 20,
-    minHeight: 50,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#555C68',
-  },
-
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '500',
-  },
-
-  countdown: {
-    color: '#8F96A3',
-    fontSize: 13,
-    textAlign: 'center',
-    marginTop: 10,
-  },
-
-  confirmedButton: {
-    marginTop: 20,
-    minHeight: 50,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#3D6B60',
   },
 
   loginMessage: {
@@ -128,6 +95,17 @@ export const styles = StyleSheet.create({
   availabilityText: {
     fontSize: 14,
     color: '#D8DCE3',
+  },
+  accountLink: {
+    color: '#F59E0B',
+    textDecorationLine: 'underline',
+  },
+
+  availabilityMessage: {
+    marginTop: 16,
+    textAlign: 'center',
+    color: '#B8BCC4',
+    fontSize: 14,
   },
 
 });

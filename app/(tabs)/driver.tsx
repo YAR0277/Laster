@@ -1,84 +1,95 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Pressable, Switch, Text, View } from 'react-native';
+import { useState } from 'react';
+import {
+  Pressable,
+  ScrollView,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
 
 import { styles as commonStyles } from '../../components/common';
 import { styles as driverStyles } from '../../components/driver';
+import { useDriver } from '../../data/driver';
+import { useTrip } from '../../data/trip';
 
 export default function DriverScreen() {
-  const [status, setStatus] = useState('Requested');
-  const [secondsLeft, setSecondsLeft] = useState(0);
-  const [loggedIn, setLoggedIn] = useState(true);
+  const { trips, setTrips } = useTrip();
+  const { driver } = useDriver();
+
   const [available, setAvailable] = useState(false);
+
   const router = useRouter();
 
-  useEffect(() => {
-    if (status !== 'Accepted') {
+  const hasAccount = driver !== null;
+
+  const acceptTrip = (tripID: string) => {
+    if (!hasAccount) {
       return;
     }
 
-    setSecondsLeft(30);
-
-    const timer = setInterval(() => {
-      setSecondsLeft((seconds) => {
-        if (seconds <= 1) {
-          clearInterval(timer);
-          setStatus('Confirmed');
-          return 0;
-        }
-
-        return seconds - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [status]);
-
-  const acceptTrip = () => {
-    if (!loggedIn) {
-      return;
-    }
-
-    setStatus('Accepted');
-  };
-
-  const cancelTrip = () => {
-    setStatus('Requested');
-    setSecondsLeft(0);
+    setTrips((currentTrips) =>
+      currentTrips.map((trip) =>
+        trip.tripID === tripID
+          ? {
+              ...trip,
+              driverID: driver.driverID,
+              status: 'Accepted',
+            }
+          : trip
+      )
+    );
   };
 
   return (
-    <View style={commonStyles.container}>
+    <ScrollView
+      style={commonStyles.container}
+      contentContainerStyle={commonStyles.contentContainer}
+    >
 
       {/* Page Header */}
       <View style={driverStyles.pageHeader}>
 
         <View style={driverStyles.pageHeaderContent}>
           <View>
-            <Text style={driverStyles.pageSubtitle}>Available Trips</Text>
+            <Text style={driverStyles.pageSubtitle}>
+              Available Trips
+            </Text>
           </View>
 
           <Pressable
             style={driverStyles.accountButton}
-            onPress={() => router.push('/account-driver')}            
+            onPress={() => router.push('/driver_account')}
           >
             <MaterialCommunityIcons
-              name={loggedIn ? 'account-check' : 'account-outline'}
+              name={
+                hasAccount
+                  ? 'account-check'
+                  : 'account-outline'
+              }
               size={30}
-              color={loggedIn ? '#328F7D' : '#B8BCC4'}
+              color={
+                hasAccount
+                  ? '#F59E0B'
+                  : '#B8BCC4'
+              }
             />
           </Pressable>
         </View>
 
-        {!loggedIn ? 
-        (
+        {!hasAccount ? (
           <Text style={driverStyles.loginMessage}>
-            Please open an account and log in to accept trips.
+            Please open an{' '}
+            <Text
+              style={driverStyles.accountLink}
+              onPress={() => router.push('/driver_account')}
+            >
+              account
+            </Text>{' '}
+            to accept trips.
           </Text>
-        ) 
-        : 
-        (
+        ) : (
           <View style={driverStyles.availabilityRow}>
             <Text style={driverStyles.availabilityText}>
               I'm available to receive trips
@@ -89,72 +100,108 @@ export default function DriverScreen() {
               onValueChange={setAvailable}
               trackColor={{
                 false: '#6B7280',
-                true: '#328F7D',
+                true: '#F59E0B',
               }}
               thumbColor="#F5F5F5"
               ios_backgroundColor="#6B7280"
             />
           </View>
         )}
-        </View>
 
-
-      <View style={driverStyles.tripCard}>
-        <Text style={driverStyles.tripID}>Trip T0001</Text>
-
-        <Text style={driverStyles.tripText}>
-          <Text style={driverStyles.tripLabel}>From: </Text>
-          123 Main Street
-        </Text>
-
-        <Text style={driverStyles.tripText}>
-          <Text style={driverStyles.tripLabel}>To: </Text>
-          456 Oak Avenue
-        </Text>
-
-        <Text style={driverStyles.tripText}>
-          <Text style={driverStyles.tripLabel}>Distance: </Text>
-          12.5 miles
-        </Text>
-
-        <Text style={driverStyles.tripText}>
-          <Text style={driverStyles.tripLabel}>Fare: </Text>
-          $75.00
-        </Text>
-
-        <Text style={driverStyles.tripText}>
-          <Text style={driverStyles.tripLabel}>Payout: </Text>
-          $60.00
-        </Text>
-
-        <Text style={driverStyles.status}>
-          Status: {status}
-        </Text>
-
-        {status === 'Requested' && (
-          <Pressable style={driverStyles.acceptButton} onPress={acceptTrip}>
-            <Text style={driverStyles.buttonText}>Accept</Text>
-          </Pressable>
-        )}
-
-        {status === 'Accepted' && (
-          <>
-            <Pressable style={driverStyles.abortButton} onPress={cancelTrip}>
-              <Text style={driverStyles.buttonText}>Cancel</Text>
-            </Pressable>
-
-            <Text style={driverStyles.countdown}>
-              {secondsLeft} secs to Cancel
-            </Text>
-          </>
-        )}
-
-        {status === 'Confirmed' && (
-          <View style={driverStyles.confirmedButton}>
-            <Text style={driverStyles.buttonText}>Confirmed</Text>
-          </View>
-        )}
       </View>
-    </View>
+
+      {/* Trip Cards */}
+      {trips.length === 0 ? (
+        <View style={driverStyles.tripCard}>
+          <Text style={driverStyles.availabilityMessage}>
+            No trips available.
+          </Text>
+        </View>
+      ) : (
+        trips.map((trip) => (
+          <View
+            key={trip.tripID}
+            style={driverStyles.tripCard}
+          >
+
+            <Text style={driverStyles.tripText}>
+              <Text style={driverStyles.tripID}>Trip </Text>
+              {trip.tripID}
+            </Text>
+
+            <Text style={driverStyles.tripText}>
+              <Text style={driverStyles.tripLabel}>From: </Text>
+              {trip.from || '...'}
+            </Text>
+
+            <Text style={driverStyles.tripText}>
+              <Text style={driverStyles.tripLabel}>To: </Text>
+              {trip.to || '...'}
+            </Text>
+
+            <Text style={driverStyles.tripText}>
+              <Text style={driverStyles.tripLabel}>Cargo: </Text>
+              {trip.cargo || '...'}
+            </Text>
+
+            <Text style={driverStyles.tripText}>
+              <Text style={driverStyles.tripLabel}>Distance: </Text>
+              {trip.distance !== null
+                ? `${trip.distance} mi`
+                : '...'}
+            </Text>
+
+            <Text style={driverStyles.tripText}>
+              <Text style={driverStyles.tripLabel}>Fare: </Text>
+              {trip.fare !== null
+                ? `$${trip.fare.toFixed(2)}`
+                : '...'}
+            </Text>
+
+            <Text style={driverStyles.tripText}>
+              <Text style={driverStyles.tripLabel}>Payout: </Text>
+              {trip.payout !== null
+                ? `$${trip.payout.toFixed(2)}`
+                : '...'}
+            </Text>
+
+            <Text style={driverStyles.tripText}>
+              <Text style={driverStyles.status}>Status: </Text>
+              {trip.status}
+            </Text>
+
+            {/* Accept Trip */}
+            {trip.status === 'Requested' && available && (
+              <Pressable
+                style={driverStyles.acceptButton}
+                onPress={() => acceptTrip(trip.tripID)}
+              >
+                <Text style={driverStyles.buttonText}>
+                  Accept
+                </Text>
+              </Pressable>
+            )}
+
+            {/* Not Available */}
+            {trip.status === 'Requested' && !available && (
+              <Text style={driverStyles.availabilityMessage}>
+                Turn on availability to accept this trip.
+              </Text>
+            )}
+
+            {/* Accepted */}
+            {trip.status === 'Accepted' && (
+              <View style={driverStyles.acceptButton}>
+                <Text style={driverStyles.buttonText}>
+                  Accepted
+                </Text>
+              </View>
+            )}
+
+          </View>
+        ))
+      )}
+
+    </ScrollView>
   );
 }

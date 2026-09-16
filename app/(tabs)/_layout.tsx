@@ -49,6 +49,6 @@ export default function TabLayout() {
         }}
       />
 
-    </Tabs>
+      </Tabs>
   );
 }

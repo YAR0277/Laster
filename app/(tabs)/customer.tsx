@@ -2,43 +2,150 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
+  Alert,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
+
 import { styles as commonStyles } from '../../components/common';
 import { styles as customerStyles } from '../../components/customer';
+import { useCustomer } from '../../data/customer';
+import { useTrip } from '../../data/trip';
 
 export default function RenterScreen() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [fare, setFare] = useState<number | null>(null);
-  const [status, setStatus] = useState('Not submitted');
+  const [cargo, setCargo] = useState('');
+  const [phone, setPhone] = useState('');
+  const [payment, setPayment] = useState('');
+  const [openAccount, setOpenAccount] = useState(false);
+  const [email, setEmail] = useState('');
+  const [currentTripID, setCurrentTripID] = useState<string | null>(null);
+
+  const { trips, setTrips } = useTrip();
+  const { customer, setCustomer } = useCustomer();
+
+  const currentTrip = trips.find(
+    (trip) => trip.tripID === currentTripID
+  );
+
+  const fare = currentTrip?.fare ?? null;
+  const status = currentTrip?.status ?? 'Not submitted';
+
+  const [rating, setRating] = useState<number | null>(null);
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
+
   const router = useRouter();
 
-  // Temporary login state.
-  // This will eventually come from the Customer Account.
-  const [loggedIn, setLoggedIn] = useState(false);
-
   const requestTrip = () => {
-    if (!loggedIn) {
+    // Required rental information
+    if (!from || !to || !cargo || !phone || !payment) {
+      Alert.alert(
+        'Missing Information',
+        'Please enter your From address, To address, Cargo, Phone, and Payment information.'
+      );
       return;
     }
 
-    // Temporary fare calculation
-    const randomFare = Math.floor(Math.random() * 76) + 25;
+    // Email is required only when opening an account
+    if (openAccount && !email) {
+      Alert.alert(
+        'Missing Information',
+        'Please enter your email address to open an account with Laster.'
+      );
+      return;
+    }
 
-    setFare(randomFare);
-    setStatus('Requested');
+    // Create or update the Customer account if requested
+    let customerID: string | null = null;
+
+    if (openAccount) {
+      customerID = customer?.customerID ?? 'C0001';
+
+      setCustomer({
+        customerID,
+        phone,
+        email,
+        payment,
+      });
+    }
+
+    const randomFare = Math.floor(Math.random() * 76) + 25;
+    const dummyDistance = 12;
+    const dummyPayout = randomFare * 0.80;
+
+    const newTripNumber = trips.length + 1;
+    const newTripID = `T${String(newTripNumber).padStart(4, '0')}`;
+
+    const newTrip = {
+      tripID: newTripID,
+      customerID,
+      driverID: null,
+      from,
+      to,
+      cargo,
+      phone,
+      payment,
+      distance: dummyDistance,
+      fare: randomFare,
+      payout: dummyPayout,
+      status: 'Requested' as const,
+    };
+
+    setTrips((currentTrips) => [
+      ...currentTrips,
+      newTrip,
+    ]);
+
+    setCurrentTripID(newTripID);
   };
 
-  const abortTrip = () => {
-    setStatus('Aborted');
+  const completeTrip = () => {
+    if (!currentTripID) {
+      return;
+    }
+
+    setTrips((currentTrips) =>
+      currentTrips.map((trip) =>
+        trip.tripID === currentTripID
+          ? { ...trip, status: 'Completed' }
+          : trip
+      )
+    );
+  };
+
+  const startNewTrip = () => {
+    setCurrentTripID(null);
+    setFrom('');
+    setTo('');
+    setCargo('');
+    setPhone('');
+    setPayment('');
+    setOpenAccount(false);
+    setEmail('');
+    setRating(null);
+    setRatingSubmitted(false);
+  };
+
+  const submitRating = () => {
+    if (rating !== null) {
+      setRatingSubmitted(true);
+      startNewTrip();
+    }
+  };
+
+  const skipRating = () => {
+    startNewTrip();
   };
 
   return (
-    <View style={commonStyles.container}>
+    <ScrollView
+      style={commonStyles.container}
+      contentContainerStyle={commonStyles.contentContainer}
+    >
 
       {/* Page Header */}
       <View style={customerStyles.pageHeader}>
@@ -51,12 +158,12 @@ export default function RenterScreen() {
 
           <Pressable
             style={customerStyles.accountButton}
-            onPress={() => router.push('/account-customer')}
+            onPress={() => router.push('/customer_account')}
           >
             <MaterialCommunityIcons
-              name={loggedIn ? 'account-check' : 'account-outline'}
+              name="account-outline"
               size={30}
-              color={loggedIn ? '#1877E8' : '#B8BCC4'}
+              color="#B8BCC4"
             />
           </Pressable>
         </View>
@@ -107,38 +214,82 @@ export default function RenterScreen() {
           />
         </View>
 
+        {/* Cargo */}
+        <View style={customerStyles.inputGroup}>
+          <Text style={customerStyles.fieldLabel}>Cargo</Text>
+
+          <TextInput
+            style={customerStyles.input}
+            placeholder="What are you transporting?"
+            placeholderTextColor="#888"
+            value={cargo}
+            onChangeText={setCargo}
+          />
+        </View>
+
+        {/* Phone */}
+        <View style={customerStyles.inputGroup}>
+          <Text style={customerStyles.fieldLabel}>Phone</Text>
+
+          <TextInput
+            style={customerStyles.input}
+            placeholder="Enter telephone number"
+            placeholderTextColor="#888"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+          />
+        </View>
+
+        {/* Payment */}
+        <View style={customerStyles.inputGroup}>
+          <Text style={customerStyles.fieldLabel}>Payment</Text>
+
+          <TextInput
+            style={customerStyles.input}
+            placeholder="Enter payment information"
+            placeholderTextColor="#888"
+            value={payment}
+            onChangeText={setPayment}
+          />
+        </View>
+
         {/* Fare */}
         <View style={customerStyles.infoRow}>
           <View style={customerStyles.infoContent}>
             <Text style={customerStyles.infoLabel}>FARE</Text>
             <Text style={customerStyles.infoValue}>
-              {fare !== null ? `$${fare.toFixed(2)}` : 'Calculated by App'}
+              {fare !== null
+                ? `$${fare.toFixed(2)}`
+                : 'Calculated by App'}
             </Text>
           </View>
         </View>
 
         {/* Status */}
-        <View style={[customerStyles.infoRow, customerStyles.statusRow]}>
+        <View
+          style={[
+            customerStyles.infoRow,
+            customerStyles.statusRow,
+          ]}
+        >
           <View style={customerStyles.infoContent}>
             <Text style={customerStyles.infoLabel}>STATUS</Text>
-            <Text style={customerStyles.infoValue}>{status}</Text>
+            <Text style={customerStyles.infoValue}>
+              {status}
+            </Text>
           </View>
         </View>
-        
-        {/* Login message */}
-        {!loggedIn && status === 'Not submitted' && (
-          <Text style={customerStyles.loginMessage}>
-            Please open an account and log in to request a trip.
-          </Text>
-        )}
 
-        {/* Actions */}
+        {/* Request Trip */}
         {status === 'Not submitted' && (
           <Pressable
             style={customerStyles.button}
             onPress={requestTrip}
           >
-            <Text style={customerStyles.buttonText}>Request Trip</Text>
+            <Text style={customerStyles.buttonText}>
+              Request Trip
+            </Text>
 
             <MaterialCommunityIcons
               name="arrow-right"
@@ -148,17 +299,160 @@ export default function RenterScreen() {
           </Pressable>
         )}
 
-        {status === 'Requested' && (
+        {/* Open Account */}
+        {status === 'Not submitted' && (
+          <>
+            <Pressable
+              style={customerStyles.accountOption}
+              onPress={() => setOpenAccount(!openAccount)}
+            >
+              <MaterialCommunityIcons
+                name={
+                  openAccount
+                    ? 'checkbox-marked'
+                    : 'checkbox-blank-outline'
+                }
+                size={22}
+                color="#8B5CF6"
+              />
+
+              <Text style={customerStyles.accountOptionText}>
+                Open an account with Laster
+              </Text>
+            </Pressable>
+
+            {/* Email */}
+            {openAccount && (
+              <View style={customerStyles.inputGroup}>
+                <Text style={customerStyles.fieldLabel}>
+                  Email
+                </Text>
+
+                <TextInput
+                  style={customerStyles.input}
+                  placeholder="Enter email address"
+                  placeholderTextColor="#888"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+            )}
+          </>
+        )}
+
+        {/* Accepted */}
+        {status === 'Accepted' && (
           <Pressable
-            style={customerStyles.abortButton}
-            onPress={abortTrip}
+            style={customerStyles.button}
+            onPress={completeTrip}
           >
-            <Text style={customerStyles.buttonText}>Cancel Trip</Text>
+            <Text style={customerStyles.buttonText}>
+              Complete Trip
+            </Text>
+
+            <MaterialCommunityIcons
+              name="check"
+              size={22}
+              color="#FFFFFF"
+            />
           </Pressable>
         )}
 
       </View>
 
-    </View>
+      {/* Rate Your Driver */}
+      {status === 'Completed' && (
+        <View style={customerStyles.ratingCard}>
+
+          <Text style={customerStyles.sectionTitle}>
+            Rate Your Driver
+          </Text>
+
+          {!ratingSubmitted ? (
+            <>
+              <Text style={customerStyles.ratingSubtitle}>
+                How was your experience?
+              </Text>
+
+              <View style={customerStyles.stars}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Pressable
+                    key={star}
+                    onPress={() => setRating(star)}
+                    style={customerStyles.starButton}
+                  >
+                    <MaterialCommunityIcons
+                      name={
+                        star <= (rating ?? 0)
+                          ? 'star'
+                          : 'star-outline'
+                      }
+                      size={38}
+                      color={
+                        star <= (rating ?? 0)
+                          ? '#8B5CF6'
+                          : '#B8BCC4'
+                      }
+                    />
+                  </Pressable>
+                ))}
+              </View>
+
+              <Pressable
+                style={[
+                  customerStyles.ratingButton,
+                  rating === null &&
+                    customerStyles.ratingButtonDisabled,
+                ]}
+                onPress={submitRating}
+                disabled={rating === null}
+              >
+                <Text style={customerStyles.ratingButtonText}>
+                  Submit Rating
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={customerStyles.ratingButton}
+                onPress={skipRating}
+              >
+                <Text style={customerStyles.ratingButtonText}>
+                  Skip Rating
+                </Text>
+              </Pressable>
+            </>
+          ) : (
+            <View style={customerStyles.ratingSubmitted}>
+              <Text style={customerStyles.ratingMessage}>
+                Thank you for rating your driver!
+              </Text>
+
+              <View style={customerStyles.stars}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <MaterialCommunityIcons
+                    key={star}
+                    name={
+                      star <= (rating ?? 0)
+                        ? 'star'
+                        : 'star-outline'
+                    }
+                    size={38}
+                    color={
+                      star <= (rating ?? 0)
+                        ? '#8B5CF6'
+                        : '#B8BCC4'
+                    }
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+
+        </View>
+      )}
+
+    </ScrollView>
   );
 }

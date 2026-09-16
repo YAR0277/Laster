@@ -61,9 +61,9 @@ export const styles = StyleSheet.create({
   },
 
   statIconCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 18,
@@ -74,7 +74,7 @@ export const styles = StyleSheet.create({
   },
 
   distanceIcon: {
-    backgroundColor: '#3D6B60',
+    backgroundColor: '#66529A',
   },
 
   fareIcon: {
@@ -134,11 +134,11 @@ export const styles = StyleSheet.create({
   },
 
   rentPickupButton: {
-    backgroundColor: '#1877E8',
+    backgroundColor: '#8B5CF6',
   },
 
   driveWithLasterButton: {
-    backgroundColor: '#328F7D',
+    backgroundColor: '#F59E0B',
   },
 
   quickButtonText: {
