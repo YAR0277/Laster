@@ -35,6 +35,8 @@ export default function DriverScreen() {
           ? {
               ...trip,
               driverID: driver.driverID,
+              driverFirstName: driver.firstName,
+              truck: `${driver.make} ${driver.model}`,
               status: 'Accepted',
             }
           : trip
@@ -127,6 +129,16 @@ export default function DriverScreen() {
             <Text style={driverStyles.tripText}>
               <Text style={driverStyles.tripID}>Trip </Text>
               {trip.tripID}
+            </Text>
+
+            <Text style={driverStyles.tripText}>
+              <Text style={driverStyles.tripLabel}>Customer: </Text>
+              {trip.customerFirstName || '...'}
+            </Text>
+
+            <Text style={driverStyles.tripText}>
+              <Text style={driverStyles.tripLabel}>Phone: </Text>
+              {trip.phone || '...'}
             </Text>
 
             <Text style={driverStyles.tripText}>

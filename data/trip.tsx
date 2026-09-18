@@ -9,21 +9,21 @@ export type TripStatus =
 
 export type Trip = {
   tripID: string;
-
   customerID: string | null;
   driverID: string | null;
-
+  customerFirstName: string;
+  driverFirstName: string;
+  truck: string;
   from: string;
   to: string;
   cargo: string;
-
+  cargoPhoto: string;
   phone: string;
   payment: string;
-
   distance: number | null;
+  distanceToArrival: number | null;
   fare: number | null;
   payout: number | null;
-
   status: TripStatus;
 };
 

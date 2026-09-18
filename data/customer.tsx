@@ -2,6 +2,7 @@ import { createContext, ReactNode, useContext, useState } from 'react';
 
 export type Customer = {
   customerID: string;
+  firstName: string;
   phone: string;
   email: string;
   payment: string;

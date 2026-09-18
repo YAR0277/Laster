@@ -2,11 +2,14 @@ import { createContext, ReactNode, useContext, useState } from 'react';
 
 export type Driver = {
   driverID: string;
+  firstName: string;
+  lastName: string;
   phone: string;
   email: string;
   make: string;
   model: string;
   year: string;
+  truckPhoto: string;
   licenseNumber: string;
   licenseState: string;
   dateOfBirth: string;

@@ -16,7 +16,7 @@ import { useTrip } from '../data/trip';
 export default function CustomerAccountScreen() {
   const { customer, setCustomer } = useCustomer();
   const { trips } = useTrip();
-
+  const [firstName, setFirstName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [payment, setPayment] = useState('');
@@ -26,10 +26,12 @@ export default function CustomerAccountScreen() {
   // Load the saved customer information when the account exists
   useEffect(() => {
     if (customer) {
+      setFirstName(customer.firstName);
       setPhone(customer.phone);
       setEmail(customer.email);
       setPayment(customer.payment);
     } else {
+      setFirstName('');
       setPhone('');
       setEmail('');
       setPayment('');
@@ -58,6 +60,7 @@ export default function CustomerAccountScreen() {
 
     setCustomer({
       ...customer,
+      firstName,
       phone,
       email,
       payment,

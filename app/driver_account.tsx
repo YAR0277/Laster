@@ -14,12 +14,14 @@ import { useDriver } from '../data/driver';
 
 export default function DriverAccountScreen() {
   const { driver, setDriver } = useDriver();
-
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
   const [year, setYear] = useState('');
+  const [truckPhoto, setTruckPhoto] = useState('');
   const [licenseNumber, setLicenseNumber] = useState('');
   const [licenseState, setLicenseState] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
@@ -31,11 +33,14 @@ export default function DriverAccountScreen() {
 
   useEffect(() => {
     if (driver) {
+      setFirstName(driver.firstName);
+      setLastName(driver.lastName);
       setPhone(driver.phone);
       setEmail(driver.email);
       setMake(driver.make);
       setModel(driver.model);
       setYear(driver.year);
+      setTruckPhoto(driver.truckPhoto);
       setLicenseNumber(driver.licenseNumber);
       setLicenseState(driver.licenseState);
       setDateOfBirth(driver.dateOfBirth);
@@ -43,11 +48,14 @@ export default function DriverAccountScreen() {
       setInsuranceCompany(driver.insuranceCompany);
       setBankAccount(driver.bankAccount);
     } else {
+      setFirstName('');
+      setLastName('');
       setPhone('');
       setEmail('');
       setMake('');
       setModel('');
       setYear('');
+      setTruckPhoto('');
       setLicenseNumber('');
       setLicenseState('');
       setDateOfBirth('');
@@ -58,21 +66,24 @@ export default function DriverAccountScreen() {
   }, [driver]);
 
   const openAccount = () => {
-    if (!phone) {
+    if (!firstName || !lastName || !phone) {
       Alert.alert(
         'Missing Information',
-        'Please enter your phone number.'
+        'Please enter your first name, last name, and phone number.'
       );
       return;
     }
 
     const newDriver = {
       driverID: 'D0001',
+      firstName,
+      lastName,
       phone,
       email,
       make,
       model,
       year,
+      truckPhoto,
       licenseNumber,
       licenseState,
       dateOfBirth,
@@ -91,10 +102,10 @@ export default function DriverAccountScreen() {
   };
 
   const updateAccount = () => {
-    if (!phone) {
+    if (!firstName || !lastName || !phone) {
       Alert.alert(
         'Missing Information',
-        'Please enter your phone number.'
+        'Please enter your first name, last name, and phone number.'
       );
       return;
     }
@@ -105,6 +116,8 @@ export default function DriverAccountScreen() {
 
     setDriver({
       ...driver,
+      firstName,
+      lastName,
       phone,
       email,
       make,
@@ -159,6 +172,26 @@ export default function DriverAccountScreen() {
       {/* Contact */}
       <View style={accountStyles.section}>
         <Text style={accountStyles.sectionTitle}>Contact</Text>
+
+        <Text style={accountStyles.fieldLabel}>First Name</Text>
+
+        <TextInput
+          style={accountStyles.input}
+          placeholder="Enter first name"
+          placeholderTextColor="#888"
+          value={firstName}
+          onChangeText={setFirstName}
+        />
+
+        <Text style={accountStyles.fieldLabel}>Last Name</Text>
+
+        <TextInput
+          style={accountStyles.input}
+          placeholder="Enter last name"
+          placeholderTextColor="#888"
+          value={lastName}
+          onChangeText={setLastName}
+        />
 
         <Text style={accountStyles.fieldLabel}>Phone</Text>
 

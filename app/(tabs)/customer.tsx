@@ -19,6 +19,7 @@ export default function RenterScreen() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [cargo, setCargo] = useState('');
+  const [firstName, setFirstName] = useState('');
   const [phone, setPhone] = useState('');
   const [payment, setPayment] = useState('');
   const [openAccount, setOpenAccount] = useState(false);
@@ -42,10 +43,10 @@ export default function RenterScreen() {
 
   const requestTrip = () => {
     // Required rental information
-    if (!from || !to || !cargo || !phone || !payment) {
+    if (!from || !to || !cargo || !firstName || !phone || !payment) {
       Alert.alert(
         'Missing Information',
-        'Please enter your From address, To address, Cargo, Phone, and Payment information.'
+        'Please enter your From address, To address, Cargo, First Name, Phone, and Payment information.'
       );
       return;
     }
@@ -67,6 +68,7 @@ export default function RenterScreen() {
 
       setCustomer({
         customerID,
+        firstName,
         phone,
         email,
         payment,
@@ -84,12 +86,17 @@ export default function RenterScreen() {
       tripID: newTripID,
       customerID,
       driverID: null,
+      customerFirstName: firstName,
+      driverFirstName: '',
+      truck: '',
       from,
       to,
       cargo,
+      cargoPhoto: '',
       phone,
       payment,
       distance: dummyDistance,
+      distanceToArrival: dummyDistance,
       fare: randomFare,
       payout: dummyPayout,
       status: 'Requested' as const,
@@ -122,6 +129,7 @@ export default function RenterScreen() {
     setFrom('');
     setTo('');
     setCargo('');
+    setFirstName('');
     setPhone('');
     setPayment('');
     setOpenAccount(false);
@@ -224,6 +232,19 @@ export default function RenterScreen() {
             placeholderTextColor="#888"
             value={cargo}
             onChangeText={setCargo}
+          />
+        </View>
+
+        {/* First Name */}
+        <View style={customerStyles.inputGroup}>
+          <Text style={customerStyles.fieldLabel}>First Name</Text>
+
+          <TextInput
+            style={customerStyles.input}
+            placeholder="Enter first name"
+            placeholderTextColor="#888"
+            value={firstName}
+            onChangeText={setFirstName}
           />
         </View>
 
@@ -344,22 +365,52 @@ export default function RenterScreen() {
 
         {/* Accepted */}
         {status === 'Accepted' && (
-          <Pressable
-            style={customerStyles.button}
-            onPress={completeTrip}
-          >
-            <Text style={customerStyles.buttonText}>
-              Complete Trip
-            </Text>
+          <>
+            <View style={customerStyles.driverInfo}>
+              <Text style={customerStyles.driverMessage}>
+                {(currentTrip?.driverFirstName.trim() || 'Your driver') + ' is on his way'}
+              </Text>
 
-            <MaterialCommunityIcons
-              name="check"
-              size={22}
-              color="#FFFFFF"
-            />
-          </Pressable>
+              <Text style={customerStyles.driverInfoText}>
+                <Text style={customerStyles.driverInfoLabel}>
+                  Driver:{' '}
+                </Text>
+                {currentTrip?.driverFirstName || '...'}
+              </Text>
+
+              <Text style={customerStyles.driverInfoText}>
+                <Text style={customerStyles.driverInfoLabel}>
+                  Truck:{' '}
+                </Text>
+                {currentTrip?.truck || '...'}
+              </Text>
+
+              <Text style={customerStyles.driverInfoText}>
+                <Text style={customerStyles.driverInfoLabel}>
+                  Miles to arrival:{' '}
+                </Text>
+                {currentTrip?.distanceToArrival != null
+                  ? `${currentTrip?.distanceToArrival} mi`
+                  : '...'}
+              </Text>
+            </View>
+
+            <Pressable
+              style={customerStyles.button}
+              onPress={completeTrip}
+            >
+              <Text style={customerStyles.buttonText}>
+                Complete Trip
+              </Text>
+
+              <MaterialCommunityIcons
+                name="check"
+                size={22}
+                color="#FFFFFF"
+              />
+            </Pressable>
+          </>
         )}
-
       </View>
 
       {/* Rate Your Driver */}

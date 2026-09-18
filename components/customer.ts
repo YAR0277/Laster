@@ -100,6 +100,32 @@ export const styles = StyleSheet.create({
     marginBottom: 14,
   },
 
+  driverInfo: {
+    borderTopWidth: 1,
+    borderTopColor: '#454B55',
+    paddingTop: 16,
+    marginTop: 4,
+    marginBottom: 6,
+  },
+
+  driverMessage: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#F5F5F5',
+    marginBottom: 14,
+  },
+
+  driverInfoText: {
+    fontSize: 15,
+    color: '#D8DCE3',
+    marginBottom: 8,
+  },
+
+  driverInfoLabel: {
+    fontWeight: '500',
+    color: '#B8BCC4',
+  },
+
   button: {
     marginTop: 10,
     minHeight: 50,
