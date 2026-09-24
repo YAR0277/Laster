@@ -62,7 +62,7 @@ export const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#328F7D',
+    backgroundColor: '#F59E0B',
     marginBottom: 12,
   },
 
@@ -88,4 +88,63 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
+
+  toggleContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#D0D5DD',
+  },
+
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  toggleButtonSelected: {
+    backgroundColor: '#1F2937',
+  },
+
+  toggleText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#667085',
+  },
+
+  toggleTextSelected: {
+    color: '#FFFFFF',
+  },  
+
+  tripRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  tripDate: {
+    fontSize: 14,
+    color: '#D8DCE3',
+    marginBottom: 5,
+  },
+
+  tripRoute: {
+    fontSize: 13,
+    color: '#8F96A3',
+  },
+
+  tripFare: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#F5F5F5',
+  },
+
+  emptyText: {
+    fontSize: 14,
+    color: '#8F96A3',
+  },
+
 });

@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   Alert,
@@ -10,10 +11,17 @@ import {
 
 import { styles as commonStyles } from '../components/common';
 import { styles as accountStyles } from '../components/driver_account';
+import { useAuth } from '../data/auth';
 import { useDriver } from '../data/driver';
+import { useTrip } from '../data/trip';
+import { supabase } from '../lib/supabase';
 
 export default function DriverAccountScreen() {
+  const router = useRouter();
   const { driver, setDriver } = useDriver();
+  const { trips } = useTrip();
+  const { user: supabaseAuthUser } = useAuth();
+  const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
@@ -28,8 +36,31 @@ export default function DriverAccountScreen() {
   const [insurancePolicy, setInsurancePolicy] = useState('');
   const [insuranceCompany, setInsuranceCompany] = useState('');
   const [bankAccount, setBankAccount] = useState('');
+  const [accountMode, setAccountMode] =
+    useState<'login' | 'open'>('login');
+  const hasAccount = supabaseAuthUser !== null && driver !== null;
 
-  const hasAccount = driver !== null;
+  const formatTripDate = (dateString: string) => {
+    const date = new Date(dateString);
+
+    return date.toLocaleString([], {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+  };
+
+  const driverTrips = trips
+    .filter(
+      (trip) =>
+        driver !== null &&
+        trip.driverID === driver.driverID &&
+        (trip.status === 'Completed' || trip.status === 'Aborted')
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.requestedAt).getTime() -
+        new Date(a.requestedAt).getTime()
+    );
 
   useEffect(() => {
     if (driver) {
@@ -65,17 +96,114 @@ export default function DriverAccountScreen() {
     }
   }, [driver]);
 
-  const openAccount = () => {
-    if (!firstName || !lastName || !phone) {
+  const login = async () => {
+    if (!email || !password) {
       Alert.alert(
         'Missing Information',
-        'Please enter your first name, last name, and phone number.'
+        'Please enter your email address and password.'
       );
       return;
     }
 
-    const newDriver = {
-      driverID: 'D0001',
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      Alert.alert(
+        'Login Error',
+        error.message
+      );
+      return;
+    }
+
+    setPassword('');
+
+    Alert.alert(
+      'Login Successful',
+      'You are now logged in as a Laster driver.'
+    );
+
+    router.replace('/(tabs)/driver');
+  };
+
+  const openAccount = async () => {
+    if (!firstName || !lastName || !phone || !email || !password) {
+      Alert.alert(
+        'Missing Information',
+        'Please enter your first name, last name, phone number, email, and password.'
+      );
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert(
+        'Invalid Password',
+        'Your password must be at least 6 characters.'
+      );
+      return;
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) {
+      Alert.alert('Account Error', error.message);
+      return;
+    }
+
+    if (!data.user) {
+      Alert.alert('Account Error', 'The account could not be created.');
+      return;
+    }
+
+    const { error: driverError } = await supabase
+      .from('drivers')
+      .insert({
+        driver_id: data.user.id,
+        first_name: firstName,
+        last_name: lastName,
+        phone,
+        email,
+        make,
+        model,
+        year,
+        truck_photo: truckPhoto,
+        license_number: licenseNumber,
+        license_state: licenseState,
+        date_of_birth: dateOfBirth,
+        insurance_policy: insurancePolicy,
+        insurance_company: insuranceCompany,
+        bank_account: bankAccount,
+        rating: null,
+      });
+
+    if (driverError) {
+      Alert.alert('Account Error', driverError.message);
+      return;
+    }
+
+    if (!data.session) {
+      const { error: signInError } =
+        await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+      if (signInError) {
+        Alert.alert(
+          'Account Created',
+          'Your account was created, but you will need to log in.'
+        );
+        return;
+      }
+    }
+
+    setDriver({
+      driverID: data.user.id,
       firstName,
       lastName,
       phone,
@@ -91,26 +219,46 @@ export default function DriverAccountScreen() {
       insuranceCompany,
       bankAccount,
       rating: null,
-    };
+    });
 
-    setDriver(newDriver);
+    setPassword('');
 
     Alert.alert(
-      'Account Opened',
-      'Your Laster driver account has been opened.'
+      'Account Created',
+      'Your Laster driver account has been created and you are now logged in.'
     );
   };
 
-  const updateAccount = () => {
-    if (!firstName || !lastName || !phone) {
-      Alert.alert(
-        'Missing Information',
-        'Please enter your first name, last name, and phone number.'
-      );
+  const updateAccount = async () => {
+    if (!driver) {
       return;
     }
 
-    if (!driver) {
+    const { error } = await supabase
+      .from('drivers')
+      .update({
+        first_name: firstName,
+        last_name: lastName,
+        phone,
+        email,
+        make,
+        model,
+        year,
+        truck_photo: truckPhoto,
+        license_number: licenseNumber,
+        license_state: licenseState,
+        date_of_birth: dateOfBirth,
+        insurance_policy: insurancePolicy,
+        insurance_company: insuranceCompany,
+        bank_account: bankAccount,
+      })
+      .eq('driver_id', driver.driverID);
+
+    if (error) {
+      Alert.alert(
+        'Account Error',
+        `The account could not be updated.\n\n${error.message}`
+      );
       return;
     }
 
@@ -123,6 +271,7 @@ export default function DriverAccountScreen() {
       make,
       model,
       year,
+      truckPhoto,
       licenseNumber,
       licenseState,
       dateOfBirth,
@@ -133,11 +282,40 @@ export default function DriverAccountScreen() {
 
     Alert.alert(
       'Account Updated',
-      'Your Laster driver account information has been updated.'
+      'Your driver account has been updated.'
     );
   };
 
-  const deleteAccount = () => {
+  const deleteAccount = async () => {
+    if (!driver) {
+      return;
+    }
+
+    const { data: acceptedTrip, error: acceptedTripError } =
+      await supabase
+        .from('trips')
+        .select('trip_id')
+        .eq('driver_id', driver.driverID)
+        .eq('status', 'Accepted')
+        .limit(1)
+        .maybeSingle();
+
+    if (acceptedTripError) {
+      Alert.alert(
+        'Account Error',
+        `The driver's current trip could not be checked.\n\n${acceptedTripError.message}`
+      );
+      return;
+    }
+
+    if (acceptedTrip) {
+      Alert.alert(
+        'Cannot Delete Account',
+        'You cannot delete your driver account while you have an accepted trip. Please complete or abort your current trip first.'
+      );
+      return;
+    }
+
     Alert.alert(
       'Delete Account',
       'This will permanently delete your Laster driver account and associated data. This action cannot be undone.',
@@ -149,12 +327,60 @@ export default function DriverAccountScreen() {
         {
           text: 'Delete Account',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
+            const { data, error } = await supabase.functions.invoke(
+              'delete-driver-account'
+            );
+
+            if (error) {
+              Alert.alert(
+                'Delete Account Error',
+                error.message
+              );
+              return;
+            }
+
+            if (!data?.success) {
+              Alert.alert(
+                'Delete Account Error',
+                data?.error ?? 'The driver account could not be deleted.'
+              );
+              return;
+            }
+
             setDriver(null);
+
+            Alert.alert(
+              'Account Deleted',
+              'Your Laster driver account has been permanently deleted.',
+              [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    router.replace('/(tabs)/driver');
+                  },
+                },
+              ],
+            );
           },
         },
       ],
     );
+  };
+
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      Alert.alert(
+        'Logout Error',
+        error.message
+      );
+      return;
+    }
+
+    setDriver(null);
+    router.replace('/(tabs)/driver');
   };
 
   return (
@@ -169,43 +395,54 @@ export default function DriverAccountScreen() {
         </Text>
       </View>
 
-      {/* Contact */}
+      {/* Login / Open Account Toggle */}
+      {!hasAccount && (
+        <View style={accountStyles.toggleContainer}>
+          <Pressable
+            style={[
+              accountStyles.toggleButton,
+              accountMode === 'login' &&
+                accountStyles.toggleButtonSelected,
+            ]}
+            onPress={() => setAccountMode('login')}
+          >
+            <Text
+              style={[
+                accountStyles.toggleText,
+                accountMode === 'login' &&
+                  accountStyles.toggleTextSelected,
+              ]}
+            >
+              Login
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              accountStyles.toggleButton,
+              accountMode === 'open' &&
+                accountStyles.toggleButtonSelected,
+            ]}
+            onPress={() => setAccountMode('open')}
+          >
+            <Text
+              style={[
+                accountStyles.toggleText,
+                accountMode === 'open' &&
+                  accountStyles.toggleTextSelected,
+              ]}
+            >
+              Open Account
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Login */}
       <View style={accountStyles.section}>
-        <Text style={accountStyles.sectionTitle}>Contact</Text>
-
-        <Text style={accountStyles.fieldLabel}>First Name</Text>
-
-        <TextInput
-          style={accountStyles.input}
-          placeholder="Enter first name"
-          placeholderTextColor="#888"
-          value={firstName}
-          onChangeText={setFirstName}
-        />
-
-        <Text style={accountStyles.fieldLabel}>Last Name</Text>
-
-        <TextInput
-          style={accountStyles.input}
-          placeholder="Enter last name"
-          placeholderTextColor="#888"
-          value={lastName}
-          onChangeText={setLastName}
-        />
-
-        <Text style={accountStyles.fieldLabel}>Phone</Text>
-
-        <TextInput
-          style={accountStyles.input}
-          placeholder="Enter phone number"
-          placeholderTextColor="#888"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-        />
+        <Text style={accountStyles.sectionTitle}>Login</Text>
 
         <Text style={accountStyles.fieldLabel}>Email</Text>
-
         <TextInput
           style={accountStyles.input}
           placeholder="Enter email address"
@@ -215,10 +452,57 @@ export default function DriverAccountScreen() {
           keyboardType="email-address"
           autoCapitalize="none"
         />
+
+        <Text style={accountStyles.fieldLabel}>Password</Text>
+        <TextInput
+          style={accountStyles.input}
+          placeholder="Enter password"
+          placeholderTextColor="#888"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoCapitalize="none"
+        />
       </View>
 
+      {/* Contact */}
+      {(hasAccount || accountMode === 'open') && (
+        <View style={accountStyles.section}>
+          <Text style={accountStyles.sectionTitle}>Contact</Text>
+
+          <Text style={accountStyles.fieldLabel}>First Name</Text>
+          <TextInput
+            style={accountStyles.input}
+            placeholder="Enter first name"
+            placeholderTextColor="#888"
+            value={firstName}
+            onChangeText={setFirstName}
+          />
+
+          <Text style={accountStyles.fieldLabel}>Last Name</Text>
+          <TextInput
+            style={accountStyles.input}
+            placeholder="Enter last name"
+            placeholderTextColor="#888"
+            value={lastName}
+            onChangeText={setLastName}
+          />
+
+          <Text style={accountStyles.fieldLabel}>Phone</Text>
+          <TextInput
+            style={accountStyles.input}
+            placeholder="Enter phone number"
+            placeholderTextColor="#888"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+          />
+        </View>
+      )}
+
       {/* Pickup Truck */}
-      <View style={accountStyles.section}>
+      {(hasAccount || accountMode === 'open') && (
+        <View style={accountStyles.section}>
         <Text style={accountStyles.sectionTitle}>
           Pickup Truck
         </Text>
@@ -254,9 +538,11 @@ export default function DriverAccountScreen() {
           keyboardType="number-pad"
         />
       </View>
+      )}
 
       {/* License */}
-      <View style={accountStyles.section}>
+      {(hasAccount || accountMode === 'open') && (
+        <View style={accountStyles.section}>
         <Text style={accountStyles.sectionTitle}>License</Text>
 
         <Text style={accountStyles.fieldLabel}>
@@ -295,9 +581,11 @@ export default function DriverAccountScreen() {
           onChangeText={setDateOfBirth}
         />
       </View>
+      )}
 
       {/* Insurance */}
-      <View style={accountStyles.section}>
+      {(hasAccount || accountMode === 'open') && (
+        <View style={accountStyles.section}>
         <Text style={accountStyles.sectionTitle}>Insurance</Text>
 
         <Text style={accountStyles.fieldLabel}>
@@ -324,9 +612,11 @@ export default function DriverAccountScreen() {
           onChangeText={setInsuranceCompany}
         />
       </View>
+      )}
 
       {/* Bank Account */}
-      <View style={accountStyles.section}>
+      {(hasAccount || accountMode === 'open') && (
+        <View style={accountStyles.section}>
         <Text style={accountStyles.sectionTitle}>
           Bank Account
         </Text>
@@ -343,6 +633,7 @@ export default function DriverAccountScreen() {
           onChangeText={setBankAccount}
         />
       </View>
+      )}
 
       {/* Rating */}
       <View style={accountStyles.section}>
@@ -355,19 +646,96 @@ export default function DriverAccountScreen() {
         </Text>
       </View>
 
+      {/* Trip History */}
+      {hasAccount && (
+        <View style={accountStyles.section}>
+          <Text style={accountStyles.sectionTitle}>
+            Trip History
+          </Text>
+
+          {driverTrips.length === 0 ? (
+            <Text style={accountStyles.emptyText}>
+              No trip history.
+            </Text>
+          ) : (
+            driverTrips.map((trip) => (
+              <View
+                key={trip.tripID}
+                style={accountStyles.tripRow}
+              >
+                <View>
+                  <Text style={accountStyles.tripDate}>
+                    {formatTripDate(trip.requestedAt)}
+                  </Text>
+
+                  <Text style={accountStyles.tripRoute}>
+                    {trip.status}
+                  </Text>
+
+                  {trip.customerFirstName && (
+                    <Text style={accountStyles.tripRoute}>
+                      Customer: {trip.customerFirstName}
+                    </Text>
+                  )}
+
+                  <Text style={accountStyles.tripRoute}>
+                    Cargo: {trip.cargo || '...'}
+                  </Text>
+
+                  <Text style={accountStyles.tripRoute}>
+                    Distance:{' '}
+                    {trip.distance !== null
+                      ? `${trip.distance} mi`
+                      : '...'}
+                  </Text>
+                </View>
+
+                <Text style={accountStyles.tripFare}>
+                  {trip.payout !== null
+                    ? `$${trip.payout.toFixed(2)}`
+                    : '...'}
+                </Text>
+              </View>
+            ))
+          )}
+        </View>
+      )}
+
       {/* Actions */}
       <View style={accountStyles.actions}>
-        {!hasAccount ? (
-          <Pressable
-            style={accountStyles.primaryButton}
-            onPress={openAccount}
-          >
-            <Text style={accountStyles.buttonText}>
-              Open Account
-            </Text>
-          </Pressable>
-        ) : (
+      {!hasAccount ? (
+        <>
+          {accountMode === 'login' ? (
+            <Pressable
+              style={accountStyles.primaryButton}
+              onPress={login}
+            >
+              <Text style={accountStyles.buttonText}>
+                Login
+              </Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              style={accountStyles.primaryButton}
+              onPress={openAccount}
+            >
+              <Text style={accountStyles.buttonText}>
+                Open
+              </Text>
+            </Pressable>
+          )}
+        </>
+      ) : (
           <>
+            <Pressable
+              style={accountStyles.primaryButton}
+              onPress={logout}
+            >
+              <Text style={accountStyles.buttonText}>
+                Logout
+              </Text>
+            </Pressable>
+
             <Pressable
               style={accountStyles.primaryButton}
               onPress={updateAccount}
@@ -388,6 +756,7 @@ export default function DriverAccountScreen() {
           </>
         )}
       </View>
+
     </ScrollView>
   );
 }

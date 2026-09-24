@@ -108,4 +108,14 @@ export const styles = StyleSheet.create({
     fontSize: 14,
   },
 
+  abortButton: {
+    backgroundColor: '#B42318',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
 });

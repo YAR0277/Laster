@@ -2,6 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
+  Alert,
   Pressable,
   ScrollView,
   Switch,
@@ -13,22 +14,66 @@ import { styles as commonStyles } from '../../components/common';
 import { styles as driverStyles } from '../../components/driver';
 import { useDriver } from '../../data/driver';
 import { useTrip } from '../../data/trip';
+import { supabase } from '../../lib/supabase';
 
 export default function DriverScreen() {
   const { trips, setTrips } = useTrip();
   const { driver } = useDriver();
-
   const [available, setAvailable] = useState(false);
-
   const router = useRouter();
-
   const hasAccount = driver !== null;
+  const hasAcceptedTrip = trips.some(
+    (trip) => trip.status === 'Accepted'
+  );  
 
-  const acceptTrip = (tripID: string) => {
+  const acceptTrip = async (tripID: string) => {
     if (!hasAccount) {
       return;
     }
 
+    const { data: acceptedTrip, error: acceptedTripError } =
+      await supabase
+        .from('trips')
+        .select('trip_id')
+        .eq('driver_id', driver.driverID)
+        .eq('status', 'Accepted')
+        .limit(1)
+        .maybeSingle();
+
+    if (acceptedTripError) {
+      Alert.alert(
+        'Trip Error',
+        `The driver's current trip could not be checked.\n\n${acceptedTripError.message}`
+      );
+      return;
+    }
+
+    if (acceptedTrip) {
+      Alert.alert(
+        'Trip Not Accepted',
+        'Can only accept one trip at a time.'
+      );
+      return;
+    }
+
+    const { error } = await supabase
+      .from('trips')
+      .update({
+        driver_id: driver.driverID,
+        driver_first_name: driver.firstName,
+        truck: `${driver.make} ${driver.model}`,
+        truck_photo: driver.truckPhoto,
+        status: 'Accepted',
+      })
+      .eq('trip_id', tripID)
+      .eq('status', 'Requested');
+
+    if (error) {
+      console.error('Trip acceptance error:', error.message);
+      return;
+    }
+
+    // Keep the local UI in sync with the database.
     setTrips((currentTrips) =>
       currentTrips.map((trip) =>
         trip.tripID === tripID
@@ -37,7 +82,44 @@ export default function DriverScreen() {
               driverID: driver.driverID,
               driverFirstName: driver.firstName,
               truck: `${driver.make} ${driver.model}`,
+              truckPhoto: driver.truckPhoto,
               status: 'Accepted',
+            }
+          : trip
+      )
+    );
+  };
+
+  const abortTrip = async (tripID: string) => {
+    if (!driver) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from('trips')
+      .update({
+        status: 'Aborted',
+        completed_at: new Date().toISOString(),
+      })
+      .eq('trip_id', tripID)
+      .eq('driver_id', driver.driverID)
+      .eq('status', 'Accepted');
+
+    if (error) {
+      Alert.alert(
+        'Trip Error',
+        `The trip could not be aborted.\n\n${error.message}`
+      );
+      return;
+    }
+
+    // Keep the local UI in sync with the database.
+    setTrips((currentTrips) =>
+      currentTrips.map((trip) =>
+        trip.tripID === tripID
+          ? {
+              ...trip,
+              status: 'Aborted',
             }
           : trip
       )
@@ -113,14 +195,24 @@ export default function DriverScreen() {
       </View>
 
       {/* Trip Cards */}
-      {trips.length === 0 ? (
+      {trips.filter(
+        (trip) =>
+          trip.status === 'Requested' ||
+          trip.status === 'Accepted'
+      ).length === 0 ? (
         <View style={driverStyles.tripCard}>
           <Text style={driverStyles.availabilityMessage}>
             No trips available.
           </Text>
         </View>
       ) : (
-        trips.map((trip) => (
+        trips
+          .filter(
+            (trip) =>
+              trip.status === 'Requested' ||
+              trip.status === 'Accepted'
+          )
+          .map((trip) => (
           <View
             key={trip.tripID}
             style={driverStyles.tripCard}
@@ -183,7 +275,7 @@ export default function DriverScreen() {
             </Text>
 
             {/* Accept Trip */}
-            {trip.status === 'Requested' && available && (
+            {trip.status === 'Requested' && available && !hasAcceptedTrip && (
               <Pressable
                 style={driverStyles.acceptButton}
                 onPress={() => acceptTrip(trip.tripID)}
@@ -201,13 +293,16 @@ export default function DriverScreen() {
               </Text>
             )}
 
-            {/* Accepted */}
+            {/* Abort Trip */}
             {trip.status === 'Accepted' && (
-              <View style={driverStyles.acceptButton}>
+              <Pressable
+                style={driverStyles.abortButton}
+                onPress={() => abortTrip(trip.tripID)}
+              >
                 <Text style={driverStyles.buttonText}>
-                  Accepted
+                  Abort Trip
                 </Text>
-              </View>
+              </Pressable>
             )}
 
           </View>

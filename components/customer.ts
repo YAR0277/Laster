@@ -108,6 +108,14 @@ export const styles = StyleSheet.create({
     marginBottom: 6,
   },
 
+  truckPhoto: {
+    width: '100%',
+    height: 180,
+    borderRadius: 10,
+    marginTop: 12,
+    marginBottom: 12,
+  },
+
   driverMessage: {
     fontSize: 18,
     fontWeight: '500',
@@ -208,6 +216,24 @@ export const styles = StyleSheet.create({
     marginLeft: 8,
     color: '#F5F5F5',
     fontSize: 16,
+  },
+
+  abortButton: {
+    backgroundColor: '#B42318',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  abortButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginRight: 8,
   },
 
 });
