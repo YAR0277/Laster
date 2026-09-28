@@ -165,8 +165,8 @@ export default function CustomerAccountScreen() {
 
       if (signInError) {
         Alert.alert(
-          'Account Created',
-          'Your account was created, but you will need to log in.'
+          'Account Opened',
+          'You have opened a Laster customer account, but you will need to log in.'
         );
         return;
       }
@@ -193,8 +193,8 @@ export default function CustomerAccountScreen() {
     }
 
     Alert.alert(
-      'Account Created',
-      'Your Laster customer account has been created and you are now logged in.'
+      'Account Opened',
+      'You have opened a Laster customer account, and you are now logged in.'
     );
   };
 
@@ -230,7 +230,7 @@ export default function CustomerAccountScreen() {
 
     Alert.alert(
       'Login Successful',
-      'You are now logged in to your Laster customer account.'
+      'Welcome back.'
     );
   };
 

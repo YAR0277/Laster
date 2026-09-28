@@ -125,12 +125,6 @@ export default function RenterScreen() {
 
   const requestTrip = async () => {
 
-    console.log('requestTrip:', {
-      openAccount: openAccountSelected,
-      user: !!supabaseAuthUser,
-      currentTripID,
-    });
-
     // Required rental information
     if (!from || !to || !cargo || !firstName || !phone || !payment) {
       Alert.alert(
@@ -372,11 +366,33 @@ export default function RenterScreen() {
     setRatingSubmitted(false);
   };
 
-  const submitRating = () => {
-    if (rating !== null) {
-      setRatingSubmitted(true);
-      startNewTrip();
+  const submitRating = async () => {
+    if (rating === null || !currentTrip) {
+      return;
     }
+
+    if (!currentTrip.tripID) {
+      return;
+    }
+
+    const { error } = await supabase.rpc(
+      'submit_driver_rating',
+      {
+        p_trip_id: currentTrip.tripID,
+        p_rating: rating,
+      }
+    );
+
+    if (error) {
+      console.error(
+        'Driver rating submission error:',
+        error.message
+      );
+      return;
+    }
+
+    setRatingSubmitted(true);
+    startNewTrip();
   };
 
   const skipRating = () => {

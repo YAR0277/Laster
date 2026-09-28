@@ -1,9 +1,9 @@
 import {
-    createContext,
-    ReactNode,
-    useContext,
-    useEffect,
-    useState,
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
 } from 'react';
 
 import { supabase } from '../lib/supabase';
@@ -26,6 +26,8 @@ export type Driver = {
   insuranceCompany: string;
   bankAccount: string;
   rating: number | null;
+  numberOfRatings: number;
+  numberOfTrips: number;
 };
 
 type DriverContextType = {
@@ -79,6 +81,8 @@ export function DriverProvider({ children }: { children: ReactNode }) {
         insuranceCompany: data.insurance_company,
         bankAccount: data.bank_account,
         rating: data.rating,
+        numberOfRatings: data.number_of_ratings,
+        numberOfTrips: data.number_of_trips,
       });
     };
 

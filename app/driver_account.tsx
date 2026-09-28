@@ -122,7 +122,7 @@ export default function DriverAccountScreen() {
 
     Alert.alert(
       'Login Successful',
-      'You are now logged in as a Laster driver.'
+      'Welcome back.'
     );
 
     router.replace('/(tabs)/driver');
@@ -179,6 +179,8 @@ export default function DriverAccountScreen() {
         insurance_company: insuranceCompany,
         bank_account: bankAccount,
         rating: null,
+        number_of_ratings: 0,
+        number_of_trips: 0,
       });
 
     if (driverError) {
@@ -219,13 +221,15 @@ export default function DriverAccountScreen() {
       insuranceCompany,
       bankAccount,
       rating: null,
+      numberOfRatings: 0,
+      numberOfTrips: 0,
     });
 
     setPassword('');
 
     Alert.alert(
-      'Account Created',
-      'Your Laster driver account has been created and you are now logged in.'
+      'Account Opened',
+      'You have opened a Laster driver account and you are now logged in.'
     );
   };
 
