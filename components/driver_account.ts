@@ -147,4 +147,26 @@ export const styles = StyleSheet.create({
     color: '#8F96A3',
   },
 
+  photoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F59E0B',
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+
+  photoButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+
+  truckPhoto: {
+    width: '100%',
+    height: 180,
+    borderRadius: 8,
+    marginTop: 10,
+  },  
 });

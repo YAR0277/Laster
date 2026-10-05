@@ -236,4 +236,27 @@ export const styles = StyleSheet.create({
     marginRight: 8,
   },
 
+  photoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#8B5CF6',
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+
+  photoButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+
+  cargoPhoto: {
+    width: '100%',
+    height: 180,
+    borderRadius: 8,
+    marginTop: 10,
+  },  
 });

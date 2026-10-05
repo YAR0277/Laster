@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import 'react-native-get-random-values';
 
+import { File } from 'expo-file-system';
+import * as ImagePicker from 'expo-image-picker';
 import { v4 as uuidv4 } from 'uuid';
 import { styles as commonStyles } from '../../components/common';
 import { styles as customerStyles } from '../../components/customer';
@@ -25,6 +27,7 @@ export default function RenterScreen() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [cargo, setCargo] = useState('');
+  const [cargoPhoto, setCargoPhoto] = useState<string | null>(null);
   const [firstName, setFirstName] = useState('');
   const [phone, setPhone] = useState('');
   const [payment, setPayment] = useState('');
@@ -64,6 +67,7 @@ export default function RenterScreen() {
     setFrom(currentTrip.from);
     setTo(currentTrip.to);
     setCargo(currentTrip.cargo);
+    setCargoPhoto(currentTrip.cargoPhoto || null);    
     setFirstName(currentTrip.customerFirstName);
     setPhone(currentTrip.phone);
     setPayment(currentTrip.payment);
@@ -109,6 +113,7 @@ export default function RenterScreen() {
       setFrom(trip.from);
       setTo(trip.to);
       setCargo(trip.cargo);
+      setCargoPhoto(trip.cargoPhoto ?? null);
       setFirstName(trip.firstName);
       setPhone(trip.phone);
       setPayment(trip.payment);
@@ -118,6 +123,18 @@ export default function RenterScreen() {
 
     loadPendingTrip();
   }, [customer, currentTrip, resumePendingTrip]);
+
+  const pickCargoPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setCargoPhoto(result.assets[0].uri);
+    }
+  };
 
   const fare = currentTrip?.fare ?? null;
   const status = currentTrip?.status ?? 'Not submitted';
@@ -144,6 +161,7 @@ export default function RenterScreen() {
           from,
           to,
           cargo,
+          cargoPhoto,
           firstName,
           phone,
           payment,
@@ -161,22 +179,31 @@ export default function RenterScreen() {
       customerID = customer.customerID;
     } else {
       // Guest customer
-      const existingGuestID = await AsyncStorage.getItem(
-        'laster_guest_customer_id'
-      );
+      let guestUser = supabaseAuthUser;
 
-      customerID = existingGuestID ?? uuidv4();
+      if (!guestUser) {
+        const { data, error } =
+          await supabase.auth.signInAnonymously();
 
-      await AsyncStorage.setItem(
-        'laster_guest_customer_id',
-        customerID
-      );
+        if (error || !data.user) {
+          Alert.alert(
+            'Customer Error',
+            `A guest session could not be created.\n\n${
+              error?.message ?? 'Unknown error'
+            }`
+          );
+          return;
+        }
+
+        guestUser = data.user;
+      }
+
+      customerID = guestUser.id;
 
       const { error } = await supabase
         .from('customers')
         .upsert({
           customer_id: customerID,
-          auth_user_id: null,
           is_guest: true,
           first_name: firstName,
           phone,
@@ -197,6 +224,36 @@ export default function RenterScreen() {
     const dummyDistance = 12;
     const dummyPayout = randomFare * 0.80;
 
+    let cargoPhotoUrl = '';
+
+    if (cargoPhoto) {
+      const file = new File(cargoPhoto);
+      const arrayBuffer = await file.arrayBuffer();
+
+      const fileName = `${uuidv4()}.jpg`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('cargo-photos')
+        .upload(fileName, arrayBuffer, {
+          contentType: 'image/jpeg',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        Alert.alert(
+          'Photo Upload Error',
+          `The cargo photo could not be uploaded.\n\n${uploadError.message}`
+        );
+        return;
+      }
+
+      const { data } = supabase.storage
+        .from('cargo-photos')
+        .getPublicUrl(fileName);
+
+      cargoPhotoUrl = data.publicUrl;
+    }
+
     const newTripID = `T${uuidv4()}`;
 
     const newTrip = {
@@ -210,7 +267,7 @@ export default function RenterScreen() {
       from,
       to,
       cargo,
-      cargoPhoto: '',
+      cargoPhoto: cargoPhotoUrl,
       phone,
       payment,
       distance: dummyDistance,
@@ -358,6 +415,7 @@ export default function RenterScreen() {
     setFrom('');
     setTo('');
     setCargo('');
+    setCargoPhoto(null);    
     setFirstName('');
     setPhone('');
     setPayment('');
@@ -494,6 +552,48 @@ export default function RenterScreen() {
             onChangeText={setCargo}
             editable={status === 'Not submitted'}
           />
+        </View>
+
+        {/* Cargo Photo */}
+        <View style={customerStyles.inputGroup}>
+          <Text style={customerStyles.fieldLabel}>Cargo Photo</Text>
+
+          {status === 'Not submitted' && (
+            <Pressable
+              style={customerStyles.photoButton}
+              onPress={pickCargoPhoto}
+            >
+              <MaterialCommunityIcons
+                name="camera-outline"
+                size={22}
+                color="#FFFFFF"
+              />
+              <Text style={customerStyles.photoButtonText}>
+                {cargoPhoto ? 'Change Cargo Photo' : 'Add Cargo Photo'}
+              </Text>
+            </Pressable>
+          )}
+
+          {cargoPhoto && (
+            <Image
+              source={{
+                uri: cargoPhoto,
+              }}
+              style={{
+                width: 300,
+                height: 200,
+                marginTop: 10,
+                backgroundColor: '#DDDDDD',
+              }}
+              onError={(event) =>
+                console.log(
+                  'Cargo photo load error:',
+                  event.nativeEvent.error
+                )
+              }
+              resizeMode="contain"
+            />
+          )}
         </View>
 
         {/* First Name */}

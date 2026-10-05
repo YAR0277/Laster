@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   Alert,
+  Image,
   Pressable,
   ScrollView,
   Text,
@@ -9,6 +10,10 @@ import {
   View,
 } from 'react-native';
 
+import { File } from 'expo-file-system';
+import * as ImagePicker from 'expo-image-picker';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 import { styles as commonStyles } from '../components/common';
 import { styles as accountStyles } from '../components/driver_account';
 import { useAuth } from '../data/auth';
@@ -29,7 +34,9 @@ export default function DriverAccountScreen() {
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
   const [year, setYear] = useState('');
-  const [truckPhoto, setTruckPhoto] = useState('');
+  const [truckPhoto, setTruckPhoto] = useState<string | null>(
+    driver?.truckPhoto || null
+  );  
   const [licenseNumber, setLicenseNumber] = useState('');
   const [licenseState, setLicenseState] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
@@ -47,6 +54,18 @@ export default function DriverAccountScreen() {
       dateStyle: 'medium',
       timeStyle: 'short',
     });
+  };
+
+  const pickTruckPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setTruckPhoto(result.assets[0].uri);
+    }
   };
 
   const driverTrips = trips
@@ -128,6 +147,58 @@ export default function DriverAccountScreen() {
     router.replace('/(tabs)/driver');
   };
 
+  const uploadTruckPhoto = async (): Promise<string> => {
+    if (!truckPhoto) {
+      return '';
+    }
+
+    if (!truckPhoto.startsWith('file://')) {
+      return truckPhoto;
+    }
+
+    const file = new File(truckPhoto);
+    const arrayBuffer = await file.arrayBuffer();
+
+    const fileName = `${uuidv4()}.jpg`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('truck-photos')
+      .upload(fileName, arrayBuffer, {
+        contentType: 'image/jpeg',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data } = supabase.storage
+      .from('truck-photos')
+      .getPublicUrl(fileName);
+
+    return data.publicUrl;
+  };
+
+  const deleteTruckPhoto = async (photoUrl: string) => {
+    if (!photoUrl) {
+      return;
+    }
+
+    const fileName = photoUrl.split('/').pop();
+
+    if (!fileName) {
+      return;
+    }
+
+    const { error } = await supabase.storage
+      .from('truck-photos')
+      .remove([fileName]);
+
+    if (error) {
+      throw error;
+    }
+  };
+
   const openAccount = async () => {
     if (!firstName || !lastName || !phone || !email || !password) {
       Alert.alert(
@@ -160,6 +231,19 @@ export default function DriverAccountScreen() {
       return;
     }
 
+    let truckPhotoUrl = '';
+    try {
+      truckPhotoUrl = await uploadTruckPhoto();
+    } catch (error) {
+      Alert.alert(
+        'Photo Upload Error',
+        error instanceof Error
+          ? error.message
+          : 'The truck photo could not be uploaded.'
+      );
+      return;
+    }
+
     const { error: driverError } = await supabase
       .from('drivers')
       .insert({
@@ -171,7 +255,7 @@ export default function DriverAccountScreen() {
         make,
         model,
         year,
-        truck_photo: truckPhoto,
+        truck_photo: truckPhotoUrl,
         license_number: licenseNumber,
         license_state: licenseState,
         date_of_birth: dateOfBirth,
@@ -213,7 +297,7 @@ export default function DriverAccountScreen() {
       make,
       model,
       year,
-      truckPhoto,
+      truckPhoto: truckPhotoUrl,
       licenseNumber,
       licenseState,
       dateOfBirth,
@@ -238,6 +322,19 @@ export default function DriverAccountScreen() {
       return;
     }
 
+    let truckPhotoUrl = '';
+    try {
+      truckPhotoUrl = await uploadTruckPhoto();
+    } catch (error) {
+      Alert.alert(
+        'Photo Upload Error',
+        error instanceof Error
+          ? error.message
+          : 'The truck photo could not be uploaded.'
+      );
+      return;
+    }
+
     const { error } = await supabase
       .from('drivers')
       .update({
@@ -248,7 +345,7 @@ export default function DriverAccountScreen() {
         make,
         model,
         year,
-        truck_photo: truckPhoto,
+        truck_photo: truckPhotoUrl,
         license_number: licenseNumber,
         license_state: licenseState,
         date_of_birth: dateOfBirth,
@@ -266,6 +363,21 @@ export default function DriverAccountScreen() {
       return;
     }
 
+    // Delete old truck photo
+    if (
+      driver.truckPhoto &&
+      driver.truckPhoto !== truckPhotoUrl
+    ) {
+      try {
+        await deleteTruckPhoto(driver.truckPhoto);
+      } catch (error) {
+        console.error(
+          'Old truck photo could not be deleted:',
+          error
+        );
+      }
+    }
+
     setDriver({
       ...driver,
       firstName,
@@ -275,7 +387,7 @@ export default function DriverAccountScreen() {
       make,
       model,
       year,
-      truckPhoto,
+      truckPhoto: truckPhotoUrl,
       licenseNumber,
       licenseState,
       dateOfBirth,
@@ -541,6 +653,25 @@ export default function DriverAccountScreen() {
           onChangeText={setYear}
           keyboardType="number-pad"
         />
+
+        <Text style={accountStyles.fieldLabel}>Truck Photo</Text>
+
+        <Pressable
+          style={accountStyles.photoButton}
+          onPress={pickTruckPhoto}
+        >
+          <Text style={accountStyles.photoButtonText}>
+            {truckPhoto ? 'Change Truck Photo' : 'Add Truck Photo'}
+          </Text>
+        </Pressable>
+
+        {truckPhoto && (
+          <Image
+            source={{ uri: truckPhoto }}
+            style={accountStyles.truckPhoto}
+            resizeMode="cover"
+          />
+        )}
       </View>
       )}
 
