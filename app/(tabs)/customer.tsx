@@ -419,7 +419,6 @@ export default function RenterScreen() {
     setFirstName('');
     setPhone('');
     setPayment('');
-    setOpenAccount(false);
     setRating(null);
     setRatingSubmitted(false);
   };
@@ -686,20 +685,28 @@ export default function RenterScreen() {
 
         {/* Start New Trip */}
         {status === 'Aborted' && (
-          <Pressable
-            style={customerStyles.button}
-            onPress={startNewTrip}
-          >
-            <Text style={customerStyles.buttonText}>
-              Start New Trip
-            </Text>
+          <>
+            <Pressable
+              style={customerStyles.button}
+              onPress={startNewTrip}
+            >
+              <Text style={customerStyles.buttonText}>
+                Start New Trip
+              </Text>
 
-            <MaterialCommunityIcons
-              name="arrow-right"
-              size={22}
-              color="#FFFFFF"
-            />
-          </Pressable>
+              <MaterialCommunityIcons
+                name="arrow-right"
+                size={22}
+                color="#FFFFFF"
+              />
+            </Pressable>
+
+            <Text style={customerStyles.abortMessage}>
+              {!currentTrip?.driverFirstName
+                ? `Trip aborted by customer ${firstName}`
+                : `Trip aborted by driver ${currentTrip.driverFirstName}`}
+            </Text>
+          </>
         )}
 
         {/* Request Trip */}

@@ -43,11 +43,11 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Registered customer
+      // Load Customer record
       const { data, error } = await supabase
         .from('customers')
         .select('*')
-        .eq('auth_user_id', supabaseAuthUser.id)
+        .eq('customer_id', supabaseAuthUser.id)
         .maybeSingle();
 
       if (error) {
@@ -62,6 +62,27 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      if (data.is_guest) {
+        setCustomer(null);
+
+        // Only sign out if this is still the same anonymous
+        // guest session that initiated the customer lookup.
+        if (supabaseAuthUser.is_anonymous) {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+
+          if (
+            session?.user.id === supabaseAuthUser.id &&
+            session.user.is_anonymous
+          ) {
+            await supabase.auth.signOut();
+          }
+        }
+
+        return;
+      }
+      
       setCustomer({
         customerID: data.customer_id,
         firstName: data.first_name,

@@ -18,10 +18,10 @@ import { supabase } from '../../lib/supabase';
 
 export default function DriverScreen() {
   const { trips, setTrips } = useTrip();
-  const { driver } = useDriver();
+  const { driver, loading: driverLoading } = useDriver();
   const [available, setAvailable] = useState(false);
   const router = useRouter();
-  const hasAccount = driver !== null;
+  const hasAccount = !driverLoading && driver !== null;
   const hasAcceptedTrip = trips.some(
     (trip) => trip.status === 'Accepted'
   );  
@@ -162,35 +162,17 @@ export default function DriverScreen() {
           </Pressable>
         </View>
 
-        {!hasAccount ? (
-          <Text style={driverStyles.loginMessage}>
-            Please open an{' '}
-            <Text
-              style={driverStyles.accountLink}
-              onPress={() => router.push('/driver_account')}
-            >
-              account
-            </Text>{' '}
-            to accept trips.
-          </Text>
-        ) : (
-          <View style={driverStyles.availabilityRow}>
-            <Text style={driverStyles.availabilityText}>
-              I'm available to receive trips
-            </Text>
-
-            <Switch
-              value={available}
-              onValueChange={setAvailable}
-              trackColor={{
-                false: '#6B7280',
-                true: '#F59E0B',
-              }}
-              thumbColor="#F5F5F5"
-              ios_backgroundColor="#6B7280"
-            />
-          </View>
-        )}
+      {driverLoading ? null : !hasAccount ? ( 
+        <Text style={driverStyles.loginMessage}> 
+          Please log in or open an{' '} 
+          <Text style={driverStyles.accountLink} onPress={() => router.push('/driver_account')} > account </Text>
+            {' '}to accept trips. 
+        </Text> ) : 
+        ( 
+        <View style={driverStyles.availabilityRow}> 
+          <Text style={driverStyles.availabilityText}> I'm available to receive trips </Text> 
+          <Switch value={available} onValueChange={setAvailable} trackColor={{ false: '#6B7280', true: '#F59E0B', }} thumbColor="#F5F5F5" ios_backgroundColor="#6B7280" /> 
+        </View> )}
 
       </View>
 

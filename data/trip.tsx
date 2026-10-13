@@ -52,10 +52,10 @@ const TripContext = createContext<TripContextType | undefined>(undefined);
 export function TripProvider({ children }: { children: ReactNode }) {
   const { user: supabaseAuthUser, loading: authLoading } = useAuth();
   const { customer } = useCustomer();
-  const { driver } = useDriver();
+  const { driver, loading: driverLoading } = useDriver();
   const [trips, setTrips] = useState<Trip[]>([]);
   useEffect(() => {
-    if (authLoading) {
+    if (authLoading || driverLoading) {
       return;
     }
 
@@ -124,7 +124,7 @@ export function TripProvider({ children }: { children: ReactNode }) {
     };
 
     loadTrips();
-  }, [supabaseAuthUser, customer, driver, authLoading]);
+  }, [supabaseAuthUser, customer, driver, authLoading, driverLoading]);
 
   return (
     <TripContext.Provider value={{ trips, setTrips }}>

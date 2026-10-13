@@ -33,6 +33,7 @@ export type Driver = {
 type DriverContextType = {
   driver: Driver | null;
   setDriver: React.Dispatch<React.SetStateAction<Driver | null>>;
+  loading: boolean;
 };
 
 const DriverContext = createContext<DriverContextType | undefined>(
@@ -42,6 +43,7 @@ const DriverContext = createContext<DriverContextType | undefined>(
 export function DriverProvider({ children }: { children: ReactNode }) {
   const { user: supabaseAuthUser, loading: authLoading } = useAuth();
   const [driver, setDriver] = useState<Driver | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (authLoading) {
@@ -50,6 +52,7 @@ export function DriverProvider({ children }: { children: ReactNode }) {
 
     if (!supabaseAuthUser) {
       setDriver(null);
+      setLoading(false);
       return;
     }
 
@@ -61,6 +64,8 @@ export function DriverProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error) {
+        setDriver(null);
+        setLoading(false);
         return;
       }
 
@@ -84,13 +89,14 @@ export function DriverProvider({ children }: { children: ReactNode }) {
         numberOfRatings: data.number_of_ratings,
         numberOfTrips: data.number_of_trips,
       });
+      setLoading(false);
     };
 
     loadDriver();
   }, [supabaseAuthUser, authLoading]);
 
   return (
-    <DriverContext.Provider value={{ driver, setDriver }}>
+    <DriverContext.Provider value={{ driver, setDriver, loading }}>
       {children}
     </DriverContext.Provider>
   );

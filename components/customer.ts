@@ -259,4 +259,12 @@ export const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 10,
   },  
+
+  abortMessage: {
+    marginTop: 12,
+    textAlign: 'center',
+    color: '#B8BCC4',
+    fontSize: 14,
+  },
+
 });

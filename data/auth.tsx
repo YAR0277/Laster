@@ -1,9 +1,9 @@
 import {
-    createContext,
-    ReactNode,
-    useContext,
-    useEffect,
-    useState,
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
 } from 'react';
 
 import { Session, User } from '@supabase/supabase-js';
@@ -24,20 +24,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get the existing session when the app starts.
-    supabase.auth.getSession().then(({ data }) => {
+    let authStateChanged = false;
 
-    setSession(data.session);
-    setUser(data.session?.user ?? null);
-    setLoading(false);
-    });
-
-    // Listen for login/logout/session changes.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      authStateChanged = true;
       setSession(newSession);
       setUser(newSession?.user ?? null);
+      setLoading(false);
+    });
+
+    supabase.auth.getSession().then(({ data }) => {
+      // Do not overwrite a newer auth state change.
+      if (authStateChanged) {
+        return;
+      }
+
+      setSession(data.session);
+      setUser(data.session?.user ?? null);
+      setLoading(false);
     });
 
     return () => {
