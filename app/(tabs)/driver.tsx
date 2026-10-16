@@ -10,11 +10,14 @@ import {
   View,
 } from 'react-native';
 
+import * as Location from 'expo-location';
 import { styles as commonStyles } from '../../components/common';
 import { styles as driverStyles } from '../../components/driver';
 import { useDriver } from '../../data/driver';
 import { useTrip } from '../../data/trip';
 import { supabase } from '../../lib/supabase';
+
+const METERS_PER_MILE = 1609.344;
 
 export default function DriverScreen() {
   const { trips, setTrips } = useTrip();
@@ -31,6 +34,36 @@ export default function DriverScreen() {
       return;
     }
 
+    // Get the driver's current location.
+    const { status } =
+      await Location.requestForegroundPermissionsAsync();
+
+    if (status !== 'granted') {
+      Alert.alert(
+        'Location Required',
+        'Please allow location access to accept a trip.'
+      );
+      return;
+    }
+
+    let driverLatitude: number;
+    let driverLongitude: number;
+
+    try {
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      driverLatitude = position.coords.latitude;
+      driverLongitude = position.coords.longitude;
+    } catch (error) {
+      Alert.alert(
+        'Location Error',
+        'Could not determine your current location. Please try again.'
+      );
+      return;
+    }
+        
     const { data: acceptedTrip, error: acceptedTripError } =
       await supabase
         .from('trips')
@@ -56,6 +89,79 @@ export default function DriverScreen() {
       return;
     }
 
+    // Load the customer's saved pickup coordinates.
+    const { data: tripLocation, error: locationError } =
+      await supabase
+        .from('trips')
+        .select('trip_from_lat, trip_from_lon')
+        .eq('trip_id', tripID)
+        .eq('status', 'Requested')
+        .maybeSingle();
+
+    if (locationError || !tripLocation) {
+      Alert.alert(
+        'Trip Error',
+        `Could not load the pickup coordinates.\n\n${
+          locationError?.message ?? 'Trip not found.'
+        }`
+      );
+      return;
+    }
+
+    if (
+      tripLocation.trip_from_lat == null ||
+      tripLocation.trip_from_lon == null
+    ) {
+      Alert.alert(
+        'Trip Error',
+        "The customer's pickup coordinates are missing."
+      );
+      return;
+    }
+
+    // Calculate driving distance from Tom to the pickup point.
+    const token = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
+
+    if (!token) {
+      Alert.alert('Trip Error', 'Mapbox access token is missing.');
+      return;
+    }
+
+    let arrivalDistance: number;
+
+    try {
+      const coordinates =
+        `${driverLongitude},${driverLatitude};` +
+        `${tripLocation.trip_from_lon},${tripLocation.trip_from_lat}`;
+
+      const url =
+        `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinates}` +
+        `?overview=false&access_token=${token}`;
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error('Could not calculate driving distance.');
+      }
+
+      const data = await response.json();
+
+      if (!data.routes?.length) {
+        throw new Error('No driving route was found.');
+      }
+
+      // Mapbox returns meters; convert to miles.
+      arrivalDistance = data.routes[0].distance / METERS_PER_MILE;
+    } catch (error) {
+      Alert.alert(
+        'Arrival Distance Error',
+        error instanceof Error
+          ? error.message
+          : 'Unable to calculate arrival distance.'
+      );
+      return;
+    }
+
     const { data: updatedTrips, error } = await supabase
       .from('trips')
       .update({
@@ -63,6 +169,9 @@ export default function DriverScreen() {
         driver_first_name: driver.firstName,
         truck: `${driver.make} ${driver.model}`,
         truck_photo: driver.truckPhoto,
+        driver_arrival_lat: driverLatitude,
+        driver_arrival_lon: driverLongitude,
+        distance_to_arrival: arrivalDistance,        
         status: 'Accepted',
       })
       .eq('trip_id', tripID)
@@ -102,6 +211,11 @@ export default function DriverScreen() {
               driverFirstName: driver.firstName,
               truck: `${driver.make} ${driver.model}`,
               truckPhoto: driver.truckPhoto,
+              driverArrivalTrip: {
+                lat: driverLatitude,
+                lon: driverLongitude,
+              },
+              distanceToArrival: arrivalDistance,
               status: 'Accepted',
             }
           : trip

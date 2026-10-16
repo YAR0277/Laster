@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -24,7 +24,7 @@ import { supabase } from '../lib/supabase';
 export default function DriverAccountScreen() {
   const router = useRouter();
   const { driver, setDriver } = useDriver();
-  const { trips } = useTrip();
+  const { trips, refreshTrips } = useTrip();
   const { user: supabaseAuthUser } = useAuth();
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -80,6 +80,12 @@ export default function DriverAccountScreen() {
         new Date(b.requestedAt).getTime() -
         new Date(a.requestedAt).getTime()
     );
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshTrips();
+    }, [refreshTrips])
+  );
 
   useEffect(() => {
     if (driver) {
@@ -823,6 +829,13 @@ export default function DriverAccountScreen() {
                       ? `${trip.distance.toFixed(2)} mi`
                       : '...'}
                   </Text>
+
+                  <Text style={accountStyles.tripRoute}>
+                    Rating:{' '}
+                    {trip.driverRating != null
+                      ? `${trip.driverRating}/5`
+                      : 'Not rated'}
+                  </Text>                  
                 </View>
 
                 <Text style={accountStyles.tripFare}>

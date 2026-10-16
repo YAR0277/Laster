@@ -401,6 +401,10 @@ export default function RenterScreen() {
         truck_photo: newTrip.truckPhoto,
         from_location: newTrip.from,
         to_location: newTrip.to,
+        trip_from_lat: fromLocation?.latitude ?? null,
+        trip_from_lon: fromLocation?.longitude ?? null,
+        trip_to_lat: toLocation?.latitude ?? null,
+        trip_to_lon: toLocation?.longitude ?? null,        
         cargo: newTrip.cargo,
         cargo_photo: newTrip.cargoPhoto,
         phone: newTrip.phone,
@@ -1002,7 +1006,7 @@ export default function RenterScreen() {
                   Miles to arrival:{' '}
                 </Text>
                 {currentTrip?.distanceToArrival != null
-                  ? `${currentTrip?.distanceToArrival} mi`
+                  ? `${currentTrip.distanceToArrival.toFixed(1)} mi`
                   : '...'}
               </Text>
             </View>

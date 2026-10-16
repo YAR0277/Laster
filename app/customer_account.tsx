@@ -1,9 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  useFocusEffect,
   useLocalSearchParams,
   useRouter,
 } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -21,7 +22,7 @@ import { supabase } from '../lib/supabase';
 
 export default function CustomerAccountScreen() {
   const { customer, setCustomer } = useCustomer();
-  const { trips } = useTrip();
+  const { trips, refreshTrips } = useTrip();
   const { user: supabaseAuthUser } = useAuth();
   const router = useRouter();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
@@ -33,6 +34,12 @@ export default function CustomerAccountScreen() {
   const [password, setPassword] = useState('');
   const [accountMode, setAccountMode] = useState<'login' | 'open'>('login');
   const hasAccount = supabaseAuthUser !== null && customer !== null;
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshTrips();
+    }, [refreshTrips])
+  );
 
   useEffect(() => {
     if (mode === 'open') {
@@ -451,7 +458,18 @@ export default function CustomerAccountScreen() {
                 </Text>
 
                 <Text style={accountStyles.tripRoute}>
-                  {trip.status}
+                  Status: {trip.status}
+                </Text>
+
+                <Text style={accountStyles.tripRoute}>
+                  Cargo: {trip.cargo || '...'}
+                </Text>
+
+                <Text style={accountStyles.tripRoute}>
+                  Distance:{' '}
+                  {trip.distance !== null
+                    ? `${trip.distance.toFixed(2)} mi`
+                    : '...'}
                 </Text>
 
                 {trip.driverFirstName && (
@@ -461,15 +479,11 @@ export default function CustomerAccountScreen() {
                 )}
 
                 <Text style={accountStyles.tripRoute}>
-                  Cargo: {trip.cargo || '...'}
-                </Text>
-
-                <Text style={accountStyles.tripRoute}>
-                  Distance:{' '}
-                  {trip.distance !== null
-                    ? `${trip.distance} mi`
-                    : '...'}
-                </Text>
+                  Rating:{' '}
+                  {trip.driverRating != null
+                    ? `${trip.driverRating}/5`
+                    : 'Not rated'}
+                </Text>                
               </View>
 
               <Text style={accountStyles.tripFare}>
