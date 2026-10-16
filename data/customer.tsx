@@ -43,12 +43,24 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      console.log('CUSTOMER LOAD:', {
+        authLoading,
+        authUserID: supabaseAuthUser?.id,
+        isAnonymous: supabaseAuthUser?.is_anonymous,
+      });
+
       // Load Customer record
       const { data, error } = await supabase
         .from('customers')
         .select('*')
         .eq('customer_id', supabaseAuthUser.id)
         .maybeSingle();
+
+      console.log('CUSTOMER QUERY:', {
+        found: !!data,
+        error: error?.message,
+        isGuest: data?.is_guest,
+      });
 
       if (error) {
         console.error('Customer load error:', error.message);

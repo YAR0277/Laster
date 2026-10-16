@@ -56,7 +56,7 @@ export default function DriverScreen() {
       return;
     }
 
-    const { error } = await supabase
+    const { data: updatedTrips, error } = await supabase
       .from('trips')
       .update({
         driver_id: driver.driverID,
@@ -66,12 +66,31 @@ export default function DriverScreen() {
         status: 'Accepted',
       })
       .eq('trip_id', tripID)
-      .eq('status', 'Requested');
+      .eq('status', 'Requested')
+      .select('trip_id, driver_id, status');
 
     if (error) {
       console.error('Trip acceptance error:', error.message);
+      Alert.alert(
+        'Trip Error',
+        `The trip could not be accepted.\n\n${error.message}`
+      );
       return;
     }
+
+    if (!updatedTrips || updatedTrips.length === 0) {
+      console.error('Trip acceptance updated zero rows:', {
+        tripID,
+        driverID: driver.driverID,
+      });
+      Alert.alert(
+        'Trip Not Accepted',
+        'The trip was not updated in the database. Check the trip status and database permissions.'
+      );
+      return;
+    }
+
+    console.log('Trip acceptance saved:', updatedTrips[0]);
 
     // Keep the local UI in sync with the database.
     setTrips((currentTrips) =>
@@ -233,7 +252,7 @@ export default function DriverScreen() {
             <Text style={driverStyles.tripText}>
               <Text style={driverStyles.tripLabel}>Distance: </Text>
               {trip.distance !== null
-                ? `${trip.distance} mi`
+                ? `${trip.distance.toFixed(1)} mi`
                 : '...'}
             </Text>
 

@@ -804,7 +804,7 @@ export default function DriverAccountScreen() {
                   </Text>
 
                   <Text style={accountStyles.tripRoute}>
-                    {trip.status}
+                    Status: {trip.status}
                   </Text>
 
                   {trip.customerFirstName && (
@@ -820,7 +820,7 @@ export default function DriverAccountScreen() {
                   <Text style={accountStyles.tripRoute}>
                     Distance:{' '}
                     {trip.distance !== null
-                      ? `${trip.distance} mi`
+                      ? `${trip.distance.toFixed(2)} mi`
                       : '...'}
                   </Text>
                 </View>

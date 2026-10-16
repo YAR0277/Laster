@@ -19,6 +19,11 @@ export type TripStatus =
   | 'Completed'
   | 'Aborted';
 
+export type DriverArrivalTrip = {
+  lat: number;
+  lon: number;
+};
+
 export type Trip = {
   tripID: string;
   customerID: string | null;
@@ -40,6 +45,7 @@ export type Trip = {
   requestedAt: string;
   completedAt: string | null;
   status: TripStatus;
+  driverArrivalTrip: DriverArrivalTrip | null;
 };
 
 type TripContextType = {
@@ -119,6 +125,14 @@ export function TripProvider({ children }: { children: ReactNode }) {
           requestedAt: trip.requested_at,
           completedAt: trip.completed_at,
           status: trip.status as TripStatus,
+          driverArrivalTrip:
+            trip.driver_arrival_lat != null &&
+            trip.driver_arrival_lon != null
+              ? {
+                  lat: trip.driver_arrival_lat,
+                  lon: trip.driver_arrival_lon,
+                }
+              : null,          
         }))
       );
     };

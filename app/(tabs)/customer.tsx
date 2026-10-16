@@ -18,10 +18,14 @@ import * as ImagePicker from 'expo-image-picker';
 import { v4 as uuidv4 } from 'uuid';
 import { styles as commonStyles } from '../../components/common';
 import { styles as customerStyles } from '../../components/customer';
+import LocationPicker, {
+  type SelectedLocation,
+} from '../../components/LocationPicker';
 import { useAuth } from '../../data/auth';
 import { useCustomer } from '../../data/customer';
-import { useTrip } from '../../data/trip';
+import { Trip, useTrip } from '../../data/trip';
 import { supabase } from '../../lib/supabase';
+
 
 export default function RenterScreen() {
   const [from, setFrom] = useState('');
@@ -40,6 +44,103 @@ export default function RenterScreen() {
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
   const [resumePendingTrip, setResumePendingTrip] = useState(false);
   const pendingTripLoaded = useRef(false);
+  const [locationPickerFor, setLocationPickerFor] = useState<'from' | 'to' | null>(null);
+  const [fromLocation, setFromLocation] = useState<SelectedLocation | null>(null);
+  const [toLocation, setToLocation] = useState<SelectedLocation | null>(null);
+  const [routeDistance, setRouteDistance] = useState<number | null>(null);
+  const [routeFare, setRouteFare] = useState<number | null>(null);
+  const [calculatingRoute, setCalculatingRoute] = useState(false);
+  const [routeError, setRouteError] = useState<string | null>(null);  
+  const METERS_PER_MILE = 1609.344;
+  const DRIVER_PAYOUT_PERCENT = 0.85;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const calculateRoute = async () => {
+      setRouteDistance(null);
+      setRouteFare(null);
+      setRouteError(null);
+
+      if (!fromLocation || !toLocation) {
+        setCalculatingRoute(false);
+        return;
+      }
+
+      const token = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
+
+      if (!token) {
+        setRouteError('Mapbox access token is missing.');
+        setCalculatingRoute(false);
+        return;
+      }
+
+      setCalculatingRoute(true);
+
+      try {
+        const coordinates =
+          `${fromLocation.longitude},${fromLocation.latitude};` +
+          `${toLocation.longitude},${toLocation.latitude}`;
+
+        const url =
+          `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinates}` +
+          `?overview=false&access_token=${token}`;
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error('Could not calculate driving distance.');
+        }
+
+        const data = await response.json();
+
+        if (!data.routes?.length) {
+          throw new Error('No driving route was found.');
+        }
+
+        // Mapbox returns distance in meters.
+        const miles = data.routes[0].distance / METERS_PER_MILE;
+
+        let fare: number;
+
+        if (miles <= 5) {
+          fare = 40;
+        } else if (miles <= 20) {
+          fare = 40 + (miles - 5) * 2.50;
+        } else if (miles <= 40) {
+          fare = 77.50 + (miles - 20) * 1.25;
+        } else {
+          fare = 102.50 + (miles - 40) * 1.00;
+        }
+
+        // Round fare to the nearest cent.
+        fare = Math.round(fare * 100) / 100;
+
+        if (!cancelled) {
+          setRouteDistance(miles);
+          setRouteFare(fare);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setRouteError(
+            error instanceof Error
+              ? error.message
+              : 'Unable to calculate the route.',
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setCalculatingRoute(false);
+        }
+      }
+    };
+
+    void calculateRoute();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fromLocation, toLocation]);
 
   useEffect(() => {
     const loadCurrentTripID = async () => {
@@ -71,6 +172,8 @@ export default function RenterScreen() {
     setFirstName(currentTrip.customerFirstName);
     setPhone(currentTrip.phone);
     setPayment(currentTrip.payment);
+    setRouteDistance(currentTrip.distance); 
+    setRouteFare(currentTrip.fare);    
   }, [currentTrip]);
 
   useEffect(() => {
@@ -151,6 +254,15 @@ export default function RenterScreen() {
       return;
     }
 
+    // Verify that the route and fare have been calculated.
+    if (routeDistance === null || routeFare === null) {
+      Alert.alert(
+        'Route Not Ready',
+        'Please select both locations and wait for the distance and fare to be calculated.',
+      );
+      return;
+    }
+
     // Guest wants to open a Laster account.
     // Save the trip information and let the Customer Account page
     // handle account creation.
@@ -165,6 +277,7 @@ export default function RenterScreen() {
           firstName,
           phone,
           payment,
+          driverArrivalTrip: null,
         })
       );
 
@@ -220,10 +333,6 @@ export default function RenterScreen() {
       }
     }
 
-    const randomFare = Math.floor(Math.random() * 76) + 25;
-    const dummyDistance = 12;
-    const dummyPayout = randomFare * 0.80;
-
     let cargoPhotoUrl = '';
 
     if (cargoPhoto) {
@@ -256,7 +365,7 @@ export default function RenterScreen() {
 
     const newTripID = `T${uuidv4()}`;
 
-    const newTrip = {
+    const newTrip: Trip = {
       tripID: newTripID,
       customerID,
       driverID: null,
@@ -270,13 +379,14 @@ export default function RenterScreen() {
       cargoPhoto: cargoPhotoUrl,
       phone,
       payment,
-      distance: dummyDistance,
-      distanceToArrival: dummyDistance,
-      fare: randomFare,
-      payout: dummyPayout,
+      distance: routeDistance,
+      distanceToArrival: null,
+      fare: routeFare,
+      payout: Math.round(routeFare * DRIVER_PAYOUT_PERCENT * 100) / 100,
       requestedAt: new Date().toISOString(),
       completedAt: null,
       status: 'Requested' as const,
+      driverArrivalTrip: null,
     };
 
     const { error } = await supabase
@@ -300,6 +410,8 @@ export default function RenterScreen() {
         fare: newTrip.fare,
         payout: newTrip.payout,
         status: newTrip.status,
+        driver_arrival_lat: newTrip.driverArrivalTrip?.lat ?? null,
+        driver_arrival_lon: newTrip.driverArrivalTrip?.lon ?? null,
       });
 
     if (error) {
@@ -347,15 +459,28 @@ export default function RenterScreen() {
       return;
     }
 
-    const { error } = await supabase
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    console.log('Complete trip auth check:', {
+      authUserID: user?.id ?? null,
+      authError: authError?.message ?? null,
+      currentTripID,
+    });
+
+    const { data, error } = await supabase
       .from('trips')
       .update({
         status: 'Completed',
         completed_at: new Date().toISOString(),
       })
-      .eq('trip_id', currentTripID);
+      .eq('trip_id', currentTripID)
+      .select('trip_id, driver_id, status, completed_at');
 
     if (error) {
+      console.error('Complete trip error:', error);
       Alert.alert(
         'Trip Error',
         `The trip could not be completed.\n\n${error.message}`
@@ -363,7 +488,20 @@ export default function RenterScreen() {
       return;
     }
 
-    // Keep the local UI in sync with the database.
+    if (!data || data.length === 0) {
+      console.error(
+        'Complete trip: Supabase updated zero rows.',
+        { currentTripID }
+      );
+      Alert.alert(
+        'Trip Error',
+        'The trip was not updated in the database. Please check the database permissions and trip ID.'
+      );
+      return;
+    }
+
+    console.log('Complete trip: database updated:', data[0]);
+
     setTrips((currentTrips) =>
       currentTrips.map((trip) =>
         trip.tripID === currentTripID
@@ -374,18 +512,29 @@ export default function RenterScreen() {
   };
 
   const abortTrip = async () => {
+
+  const { data: authData } = await supabase.auth.getUser();
+
+    console.log('Abort trip diagnostic:', {
+      currentTripID,
+      currentTripStatus: currentTrip?.status,
+      currentTripCustomerID: currentTrip?.customerID,
+      authenticatedUserID: authData.user?.id,
+    });
+
     if (!currentTripID || currentTrip?.status !== 'Requested') {
       return;
     }
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('trips')
       .update({
         status: 'Aborted',
         completed_at: new Date().toISOString(),
       })
       .eq('trip_id', currentTripID)
-      .eq('status', 'Requested');
+      .eq('status', 'Requested')
+      .select('trip_id, status');
 
     if (error) {
       Alert.alert(
@@ -395,7 +544,16 @@ export default function RenterScreen() {
       return;
     }
 
-    // Keep the local UI in sync with the database.
+    // An update can return no error but still modify zero rows.
+    if (!data || data.length === 0) {
+      Alert.alert(
+        'Trip Error',
+        'The trip was not updated in the database. Check the trip status and your Supabase Row Level Security policies.'
+      );
+      return;
+    }
+
+    // Update local state only after confirming the database update.
     setTrips((currentTrips) =>
       currentTrips.map((trip) =>
         trip.tripID === currentTripID
@@ -421,6 +579,8 @@ export default function RenterScreen() {
     setPayment('');
     setRating(null);
     setRatingSubmitted(false);
+    setRouteDistance(null);
+    setRouteFare(null);
   };
 
   const submitRating = async () => {
@@ -508,14 +668,31 @@ export default function RenterScreen() {
             <Text style={customerStyles.fieldLabel}>From</Text>
           </View>
 
-          <TextInput
-            style={customerStyles.input}
-            placeholder="Enter starting address"
-            placeholderTextColor="#888"
-            value={from}
-            onChangeText={setFrom}
-            editable={status === 'Not submitted'}
-          />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TextInput
+              style={[customerStyles.input, { flex: 1 }]}
+              placeholder="Enter starting address"
+              placeholderTextColor="#888"
+              value={from}
+              onChangeText={(value) => {
+                setFrom(value);
+                setFromLocation(null);
+              }}
+              editable={status === 'Not submitted'}
+            />
+
+            <Pressable
+              onPress={() => setLocationPickerFor('from')}
+              disabled={status !== 'Not submitted'}
+              accessibilityLabel="Choose starting location on map"
+            >
+              <MaterialCommunityIcons
+                name="map-search-outline"
+                size={26}
+                color="#B8BCC4"
+              />
+            </Pressable>
+          </View>
         </View>
 
         {/* To */}
@@ -529,14 +706,31 @@ export default function RenterScreen() {
             <Text style={customerStyles.fieldLabel}>To</Text>
           </View>
 
-          <TextInput
-            style={customerStyles.input}
-            placeholder="Enter destination address"
-            placeholderTextColor="#888"
-            value={to}
-            onChangeText={setTo}
-            editable={status === 'Not submitted'}
-          />
+          <View style={{flexDirection: 'row',alignItems: 'center', gap: 8 }}>
+            <TextInput
+              style={[customerStyles.input, { flex: 1 }]}
+              placeholder="Enter destination address"
+              placeholderTextColor="#888"
+              value={to}
+              onChangeText={(value) => {
+                setTo(value);
+                setToLocation(null);
+              }}
+              editable={status === 'Not submitted'}
+            />
+
+            <Pressable
+              onPress={() => setLocationPickerFor('to')}
+              disabled={status !== 'Not submitted'}
+              accessibilityLabel="Choose destination on map"
+            >
+              <MaterialCommunityIcons
+                name="map-search-outline"
+                size={26}
+                color="#B8BCC4"
+              />
+            </Pressable>
+          </View>
         </View>
 
         {/* Cargo */}
@@ -643,9 +837,27 @@ export default function RenterScreen() {
           <View style={customerStyles.infoContent}>
             <Text style={customerStyles.infoLabel}>FARE</Text>
             <Text style={customerStyles.infoValue}>
-              {fare !== null
-                ? `$${fare.toFixed(2)}`
-                : 'Calculated by App'}
+              {routeFare !== null
+                ? `$${routeFare.toFixed(2)}`
+                : calculatingRoute
+                  ? 'Calculating...'
+                  : routeError
+                    ? 'Unable to calculate'
+                    : 'Select From and To'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Distance */}
+        <View style={customerStyles.infoRow}>
+          <View style={customerStyles.infoContent}>
+            <Text style={customerStyles.infoLabel}>DISTANCE</Text>
+            <Text style={customerStyles.infoValue}>
+              {routeDistance !== null
+                ? `${routeDistance.toFixed(1)} mi`
+                : calculatingRoute
+                  ? 'Calculating...'
+                  : '—'}
             </Text>
           </View>
         </View>
@@ -664,6 +876,12 @@ export default function RenterScreen() {
             </Text>
           </View>
         </View>
+
+        {routeError && (
+          <Text style={{ color: '#FF7777' }}>
+            {routeError}
+          </Text>
+        )}
 
         {/* Abort Trip*/}
         {status === 'Requested' && (
@@ -897,6 +1115,28 @@ export default function RenterScreen() {
 
         </View>
       )}
+
+      {/* Other page content */}
+      <LocationPicker
+        visible={locationPickerFor !== null}
+        title={
+          locationPickerFor === 'from'
+            ? 'Choose Starting Location'
+            : 'Choose Destination'
+        }
+        onCancel={() => setLocationPickerFor(null)}
+        onSelect={(location: SelectedLocation) => {
+          if (locationPickerFor === 'from') {
+            setFrom(location.address);
+            setFromLocation(location);
+          } else if (locationPickerFor === 'to') {
+            setTo(location.address);
+            setToLocation(location);
+          }
+
+          setLocationPickerFor(null);
+        }}
+      />
 
     </ScrollView>
   );
