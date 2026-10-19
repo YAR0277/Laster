@@ -1,13 +1,135 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { styles as commonStyles } from '../../components/common';
 import { styles as indexStyles } from '../../components/index';
+import { supabase } from '../../lib/supabase';
 
 export default function HomeScreen() {
   const router = useRouter();
   const [menuVisible, setMenuVisible] = useState(false);
+  const [averageFare, setAverageFare] = useState<number | null>(null);
+
+  const [pickupsAvailable, setPickupsAvailable] = useState<number | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+
+      const loadPickupsAvailable = async () => {
+        const { count, error } = await supabase
+          .from('drivers')
+          .select('*', { count: 'exact', head: true })
+          .eq('is_available', true);
+
+        if (cancelled) return;
+
+        if (error) {
+          console.error(
+            'Load available pickups error:',
+            error.message
+          );
+          return;
+        }
+
+        setPickupsAvailable(count ?? 0);
+      };
+
+      void loadPickupsAvailable();
+
+      const interval = setInterval(() => {
+        void loadPickupsAvailable();
+      }, 15000);
+
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
+    }, [])
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAverageFare = async () => {
+      const { data, error } = await supabase
+        .from('trips')
+        .select('fare')
+        .not('fare', 'is', null);
+
+      if (error) {
+        console.error('Average fare load error:', error.message);
+        return;
+      }
+
+      const fares = data
+        .map((trip) => trip.fare)
+        .filter(
+          (fare): fare is number =>
+            typeof fare === 'number' && Number.isFinite(fare)
+        );
+
+      if (!cancelled) {
+        setAverageFare(
+          fares.length > 0
+            ? fares.reduce((sum, fare) => sum + fare, 0) / fares.length
+            : null
+        );
+      }
+    };
+
+    void loadAverageFare();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const [averageDistance, setAverageDistance] =
+    useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAverageDistance = async () => {
+      const { data, error } = await supabase
+        .from('trips')
+        .select('distance')
+        .not('distance', 'is', null);
+
+      if (error) {
+        console.error(
+          'Average distance load error:',
+          error.message
+        );
+        return;
+      }
+
+      const distances = data
+        .map((trip) => trip.distance)
+        .filter(
+          (distance): distance is number =>
+            typeof distance === 'number' &&
+            Number.isFinite(distance)
+        );
+
+      if (!cancelled) {
+        setAverageDistance(
+          distances.length > 0
+            ? distances.reduce((sum, distance) => sum + distance, 0) /
+                distances.length
+            : null
+        );
+      }
+    };
+
+    void loadAverageDistance();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   return (
   <ScrollView
     style={commonStyles.container}
@@ -69,7 +191,7 @@ export default function HomeScreen() {
             />
 
             <Text style={indexStyles.quickButtonText}>Rent a Pickup</Text>
-            <Text style={indexStyles.quickButtonSubtitle}>Need a pickup truck and a driver?</Text>
+            <Text style={indexStyles.quickButtonSubtitle}>Need a pickup truck and driver?</Text>
 
             <MaterialCommunityIcons
               name="arrow-right"
@@ -105,50 +227,21 @@ export default function HomeScreen() {
       {/* Statistics */}
       <View style={indexStyles.homeCard}>
 
-        {/* Customers Served */}
+        {/* Pickups available */}
         <View style={indexStyles.statRow}>
           <View style={[indexStyles.statIconCircle, indexStyles.customerIcon]}>
             <MaterialCommunityIcons
               name="car-pickup"
-              size={28}
+              size={22}
               color="#B8BCC4"
             />
           </View>
-
           <View style={indexStyles.statContent}>
-            <Text style={indexStyles.stat}>PICKUPS AVAILABLE</Text>
-            <Text style={indexStyles.value}>12</Text>
+            <Text style={indexStyles.statLabel}>PICKUPS AVAILABLE</Text>
+            <Text style={indexStyles.statValue}>
+              {pickupsAvailable !== null ? pickupsAvailable : '—'}
+            </Text>
           </View>
-
-          <MaterialCommunityIcons
-            name="chevron-right"
-            size={24}
-            color="#B8BCC4"
-          />
-        </View>
-
-        <View style={indexStyles.statSeparator} />
-
-        {/* Average Trip Length */}
-        <View style={indexStyles.statRow}>
-          <View style={[indexStyles.statIconCircle, indexStyles.distanceIcon]}>
-            <MaterialCommunityIcons
-              name="road-variant"
-              size={26}
-              color="#E8EDF5"
-            />
-          </View>
-
-          <View style={indexStyles.statContent}>
-            <Text style={indexStyles.stat}>AVERAGE TRIP LENGTH</Text>
-            <Text style={indexStyles.value}>0 miles</Text>
-          </View>
-
-          <MaterialCommunityIcons
-            name="chevron-right"
-            size={26}
-            color="#B8BCC4"
-          />
         </View>
 
         <View style={indexStyles.statSeparator} />
@@ -158,22 +251,41 @@ export default function HomeScreen() {
           <View style={[indexStyles.statIconCircle, indexStyles.fareIcon]}>
             <MaterialCommunityIcons
               name="database-outline"
-              size={32}
+              size={22}
               color="#FFD36A"
             />
           </View>
-
           <View style={indexStyles.statContent}>
-            <Text style={indexStyles.stat}>AVERAGE FARE</Text>
-            <Text style={indexStyles.value}>$0.00</Text>
+            <Text style={indexStyles.statLabel}>MY AVERAGE FARE</Text>
+            <Text style={indexStyles.statValue}>
+              {averageFare !== null
+                ? `$${averageFare.toFixed(2)}`
+                : '—'}
+            </Text>
           </View>
-
-          <MaterialCommunityIcons
-            name="chevron-right"
-            size={30}
-            color="#B8BCC4"
-          />
         </View>
+
+        <View style={indexStyles.statSeparator} />
+
+        {/* Average Trip Length */}
+        <View style={indexStyles.statRow}>
+          <View style={[indexStyles.statIconCircle, indexStyles.distanceIcon]}>
+            <MaterialCommunityIcons
+              name="road-variant"
+              size={22}
+              color="#E8EDF5"
+            />
+          </View>
+          <View style={indexStyles.statContent}>
+            <Text style={indexStyles.statLabel}>MY AVERAGE DISTANCE</Text>
+            <Text style={indexStyles.statValue}>
+              {averageDistance !== null
+                ? `${averageDistance.toFixed(1)} mi`
+                : '—'}
+            </Text>
+          </View>
+        </View>
+
       </View>
 
       <Modal

@@ -15,6 +15,7 @@ import 'react-native-get-random-values';
 
 import { File } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { v4 as uuidv4 } from 'uuid';
 import { styles as commonStyles } from '../../components/common';
 import { styles as customerStyles } from '../../components/customer';
@@ -53,6 +54,81 @@ export default function RenterScreen() {
   const [routeError, setRouteError] = useState<string | null>(null);  
   const METERS_PER_MILE = 1609.344;
   const DRIVER_PAYOUT_PERCENT = 0.85;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const setCurrentLocation = async () => {
+      // Only set the default when the From field is empty.
+      if (from.trim() !== '' || fromLocation !== null) {
+        return;
+      }
+
+      try {
+        const { status } =
+          await Location.requestForegroundPermissionsAsync();
+
+        if (status !== 'granted') {
+          return;
+        }
+
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        const { latitude, longitude } = position.coords;
+
+        const results = await Location.reverseGeocodeAsync({
+          latitude,
+          longitude,
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        const place = results[0];
+
+        if (!place) {
+          return;
+        }
+
+        const address = [
+          place.streetNumber,
+          place.street,
+          place.city,
+          place.region,
+          place.postalCode,
+          place.country,
+        ]
+          .filter(Boolean)
+          .join(', ');
+
+        if (!address) {
+          return;
+        }
+
+        setFrom(address);
+        setFromLocation({
+          latitude,
+          longitude,
+          address,
+        });
+      } catch (error) {
+        console.warn('Could not set current location:', error);
+      }
+    };
+
+    void setCurrentLocation();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [from, fromLocation]);
 
   useEffect(() => {
     let cancelled = false;
@@ -675,7 +751,7 @@ export default function RenterScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <TextInput
               style={[customerStyles.input, { flex: 1 }]}
-              placeholder="Enter starting address"
+              placeholder="Where from?"
               placeholderTextColor="#888"
               value={from}
               onChangeText={(value) => {
@@ -713,7 +789,7 @@ export default function RenterScreen() {
           <View style={{flexDirection: 'row',alignItems: 'center', gap: 8 }}>
             <TextInput
               style={[customerStyles.input, { flex: 1 }]}
-              placeholder="Enter destination address"
+              placeholder="Where to?"
               placeholderTextColor="#888"
               value={to}
               onChangeText={(value) => {
@@ -847,7 +923,7 @@ export default function RenterScreen() {
                   ? 'Calculating...'
                   : routeError
                     ? 'Unable to calculate'
-                    : 'Select From and To'}
+                    : '—'}
             </Text>
           </View>
         </View>

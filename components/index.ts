@@ -35,38 +35,45 @@ export const styles = StyleSheet.create({
   },
 
   homeCard: {
-    padding: 20,
-    borderRadius: 20,
+    padding: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#454B55',
-    backgroundColor: '#303641'
+    backgroundColor: '#303641',
   },
-
-  stat: {
-    fontSize: 12,
-    color: '#B8BCC4',
-    marginBottom: 3,
-  },
-
-  value: {
-    fontSize: 26,
-    color: '#F5F5F5',
-    fontWeight: '400',
-  },  
 
   statRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 105,
+    minHeight: 68,
   },
 
   statIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 18,
+    marginRight: 12,
+  },
+
+  statContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  statValue: {
+    fontSize: 18,
+    color: '#F5F5F5',
+    fontWeight: '400',
+  },
+
+  statLabel: {
+    fontSize: 12,
+    color: '#B8BCC4',
+    marginBottom: 3,
   },
 
   customerIcon: {
@@ -79,10 +86,6 @@ export const styles = StyleSheet.create({
 
   fareIcon: {
     backgroundColor: '#80652F',
-  },
-
-  statContent: {
-    flex: 1,
   },
 
   statSeparator: {

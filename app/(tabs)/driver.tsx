@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -23,6 +23,63 @@ export default function DriverScreen() {
   const { trips, setTrips } = useTrip();
   const { driver, loading: driverLoading } = useDriver();
   const [available, setAvailable] = useState(false);
+  const [availabilityLoading, setAvailabilityLoading] = useState(true);
+
+  useEffect(() => {
+    if (driverLoading) return;
+
+    if (!driver) {
+      setAvailable(false);
+      setAvailabilityLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadAvailability = async () => {
+      const { data, error } = await supabase
+        .from('drivers')
+        .select('is_available')
+        .eq('driver_id', driver.driverID)
+        .single();
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error('Load availability error:', error.message);
+        Alert.alert('Error', 'Could not load driver availability.');
+      } else {
+        setAvailable(data.is_available);
+      }
+
+      setAvailabilityLoading(false);
+    };
+
+    setAvailabilityLoading(true);
+    void loadAvailability();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [driver, driverLoading]);
+
+  const handleAvailabilityChange = async (value: boolean) => {
+    if (!driver || availabilityLoading) return;
+
+    const previousValue = available;
+    setAvailable(value);
+
+    const { error } = await supabase
+      .from('drivers')
+      .update({ is_available: value })
+      .eq('driver_id', driver.driverID);
+
+    if (error) {
+      setAvailable(previousValue);
+      console.error('Update availability error:', error.message);
+      Alert.alert('Error', 'Could not update driver availability.');
+    }
+  };
   const router = useRouter();
   const hasAccount = !driverLoading && driver !== null;
   const hasAcceptedTrip = trips.some(
@@ -304,7 +361,17 @@ export default function DriverScreen() {
         ( 
         <View style={driverStyles.availabilityRow}> 
           <Text style={driverStyles.availabilityText}> I'm available to receive trips </Text> 
-          <Switch value={available} onValueChange={setAvailable} trackColor={{ false: '#6B7280', true: '#F59E0B', }} thumbColor="#F5F5F5" ios_backgroundColor="#6B7280" /> 
+          <Switch
+            value={available}
+            onValueChange={handleAvailabilityChange}
+            disabled={!hasAccount || availabilityLoading}
+            trackColor={{
+              false: '#6B7280',
+              true: '#F59E0B',
+            }}
+            thumbColor="#F5F5F5"
+            ios_backgroundColor="#6B7280"
+          /> 
         </View> )}
 
       </View>
