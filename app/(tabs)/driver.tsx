@@ -83,8 +83,10 @@ export default function DriverScreen() {
   const router = useRouter();
   const hasAccount = !driverLoading && driver !== null;
   const hasAcceptedTrip = trips.some(
-    (trip) => trip.status === 'Accepted'
-  );  
+    (trip) =>
+      trip.status === 'Accepted' ||
+      trip.status === 'Started'
+  );
 
   const acceptTrip = async (tripID: string) => {
     if (!hasAccount) {
@@ -258,6 +260,26 @@ export default function DriverScreen() {
 
     console.log('Trip acceptance saved:', updatedTrips[0]);
 
+    // Turn off driver availability after accepting a trip.
+    const { error: availabilityError } = await supabase
+      .from('drivers')
+      .update({ is_available: false })
+      .eq('driver_id', driver.driverID);
+
+    if (availabilityError) {
+      console.error(
+        'Could not turn off driver availability:',
+        availabilityError.message
+      );
+
+      Alert.alert(
+        'Availability Error',
+        'Your trip was accepted, but availability could not be turned off. Please check your availability.'
+      );
+    } else {
+      setAvailable(false);
+    }    
+
     // Keep the local UI in sync with the database.
     setTrips((currentTrips) =>
       currentTrips.map((trip) =>
@@ -275,6 +297,46 @@ export default function DriverScreen() {
               distanceToArrival: arrivalDistance,
               status: 'Accepted',
             }
+          : trip
+      )
+    );
+  };
+
+  const startTrip = async (tripID: string) => {
+    if (!driver) {
+      return;
+    }
+
+    const { data: updatedTrips, error } = await supabase
+      .from('trips')
+      .update({
+        status: 'Started',
+      })
+      .eq('trip_id', tripID)
+      .eq('driver_id', driver.driverID)
+      .eq('status', 'Accepted')
+      .select('trip_id');
+
+    if (error) {
+      Alert.alert(
+        'Trip Error',
+        `The trip could not be started.\n\n${error.message}`
+      );
+      return;
+    }
+
+    if (!updatedTrips || updatedTrips.length === 0) {
+      Alert.alert(
+        'Trip Not Started',
+        'The trip is no longer accepted or cannot be updated.'
+      );
+      return;
+    }
+
+    setTrips((currentTrips) =>
+      currentTrips.map((trip) =>
+        trip.tripID === tripID
+          ? { ...trip, status: 'Started' }
           : trip
       )
     );
@@ -380,7 +442,8 @@ export default function DriverScreen() {
       {trips.filter(
         (trip) =>
           trip.status === 'Requested' ||
-          trip.status === 'Accepted'
+          trip.status === 'Accepted'  ||
+          trip.status === 'Started'
       ).length === 0 ? (
         <View style={driverStyles.tripCard}>
           <Text style={driverStyles.availabilityMessage}>
@@ -392,7 +455,8 @@ export default function DriverScreen() {
           .filter(
             (trip) =>
               trip.status === 'Requested' ||
-              trip.status === 'Accepted'
+              trip.status === 'Accepted'  ||
+              trip.status === 'Started'
           )
           .map((trip) => (
           <View
@@ -462,9 +526,12 @@ export default function DriverScreen() {
                 style={driverStyles.acceptButton}
                 onPress={() => acceptTrip(trip.tripID)}
               >
-                <Text style={driverStyles.buttonText}>
-                  Accept
-                </Text>
+                <MaterialCommunityIcons
+                  name="car-pickup"
+                  size={22}
+                  color="#FFFFFF"
+                />
+                <Text style={driverStyles.buttonText}>Accept</Text>
               </Pressable>
             )}
 
@@ -475,16 +542,33 @@ export default function DriverScreen() {
               </Text>
             )}
 
-            {/* Abort Trip */}
+            {/* Start and Abort Trip */}
             {trip.status === 'Accepted' && (
-              <Pressable
-                style={driverStyles.abortButton}
-                onPress={() => abortTrip(trip.tripID)}
-              >
-                <Text style={driverStyles.buttonText}>
-                  Abort Trip
-                </Text>
-              </Pressable>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <Pressable
+                  style={[driverStyles.acceptButton, { flex: 1 }]}
+                  onPress={() => startTrip(trip.tripID)}
+                >
+                  <MaterialCommunityIcons
+                    name="play-circle"
+                    size={22}
+                    color="#FFFFFF"
+                  />
+                  <Text style={driverStyles.buttonText}>Start</Text>
+                </Pressable>
+
+                <Pressable
+                  style={[driverStyles.abortButton, { flex: 1 }]}
+                  onPress={() => abortTrip(trip.tripID)}
+                >
+                  <MaterialCommunityIcons
+                    name="close-circle"
+                    size={22}
+                    color="#FFFFFF"
+                  />
+                  <Text style={driverStyles.buttonText}>Abort Trip</Text>
+                </Pressable>
+              </View>
             )}
 
           </View>

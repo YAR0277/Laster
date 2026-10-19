@@ -113,7 +113,7 @@ export const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    marginTop: 12,
+    marginTop: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },

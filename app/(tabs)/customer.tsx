@@ -1051,10 +1051,50 @@ export default function RenterScreen() {
 
         {/* Accepted */}
         {status === 'Accepted' && (
+          <View style={customerStyles.driverInfo}>
+            <Text style={customerStyles.driverMessage}>
+              {(currentTrip?.driverFirstName.trim() || 'Your driver') + ' is on his way'}
+            </Text>
+
+            {currentTrip?.truckPhoto ? (
+              <Image
+                source={{ uri: currentTrip.truckPhoto }}
+                style={customerStyles.truckPhoto}
+                resizeMode="cover"
+              />
+            ) : null}
+
+            <Text style={customerStyles.driverInfoText}>
+              <Text style={customerStyles.driverInfoLabel}>
+                Driver:{' '}
+              </Text>
+              {currentTrip?.driverFirstName || '...'}
+            </Text>
+
+            <Text style={customerStyles.driverInfoText}>
+              <Text style={customerStyles.driverInfoLabel}>
+                Truck:{' '}
+              </Text>
+              {currentTrip?.truck || '...'}
+            </Text>
+
+            <Text style={customerStyles.driverInfoText}>
+              <Text style={customerStyles.driverInfoLabel}>
+                Miles to arrival:{' '}
+              </Text>
+              {currentTrip?.distanceToArrival != null
+                ? `${currentTrip.distanceToArrival.toFixed(1)} mi`
+                : '...'}
+            </Text>
+          </View>
+        )}
+
+        {/* Started */}
+        {status === 'Started' && (
           <>
             <View style={customerStyles.driverInfo}>
               <Text style={customerStyles.driverMessage}>
-                {(currentTrip?.driverFirstName.trim() || 'Your driver') + ' is on his way'}
+                Your trip is in progress.
               </Text>
 
               {currentTrip?.truckPhoto ? (
@@ -1077,15 +1117,6 @@ export default function RenterScreen() {
                   Truck:{' '}
                 </Text>
                 {currentTrip?.truck || '...'}
-              </Text>
-
-              <Text style={customerStyles.driverInfoText}>
-                <Text style={customerStyles.driverInfoLabel}>
-                  Miles to arrival:{' '}
-                </Text>
-                {currentTrip?.distanceToArrival != null
-                  ? `${currentTrip.distanceToArrival.toFixed(1)} mi`
-                  : '...'}
               </Text>
             </View>
 
