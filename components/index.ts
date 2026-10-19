@@ -80,14 +80,6 @@ export const styles = StyleSheet.create({
     backgroundColor: '#4B5E77',
   },
 
-  distanceIcon: {
-    backgroundColor: '#66529A',
-  },
-
-  fareIcon: {
-    backgroundColor: '#80652F',
-  },
-
   statSeparator: {
     height: 1,
     backgroundColor: '#454B55',

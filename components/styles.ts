@@ -221,14 +221,6 @@ export const styles = StyleSheet.create({
     backgroundColor: '#4B5E77',
   },
 
-  distanceIcon: {
-    backgroundColor: '#3D6B60',
-  },
-
-  fareIcon: {
-    backgroundColor: '#80652F',
-  },
-
   statContent: {
     flex: 1,
   },

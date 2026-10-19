@@ -118,6 +118,7 @@ export default function RenterScreen() {
           longitude,
           address,
         });
+
       } catch (error) {
         console.warn('Could not set current location:', error);
       }
@@ -462,6 +463,7 @@ export default function RenterScreen() {
       requestedAt: new Date().toISOString(),
       completedAt: null,
       status: 'Requested' as const,
+      driverRating: null,
       driverArrivalTrip: null,
     };
 

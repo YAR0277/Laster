@@ -246,13 +246,13 @@ export default function HomeScreen() {
 
         <View style={indexStyles.statSeparator} />
 
-        {/* Average Fare */}
+        {/* My Average Fare */}
         <View style={indexStyles.statRow}>
-          <View style={[indexStyles.statIconCircle, indexStyles.fareIcon]}>
+          <View style={[indexStyles.statIconCircle, indexStyles.customerIcon]}>
             <MaterialCommunityIcons
               name="database-outline"
               size={22}
-              color="#FFD36A"
+              color="#B8BCC4"
             />
           </View>
           <View style={indexStyles.statContent}>
@@ -267,13 +267,13 @@ export default function HomeScreen() {
 
         <View style={indexStyles.statSeparator} />
 
-        {/* Average Trip Length */}
+        {/* My Average Distance */}
         <View style={indexStyles.statRow}>
-          <View style={[indexStyles.statIconCircle, indexStyles.distanceIcon]}>
+          <View style={[indexStyles.statIconCircle, indexStyles.customerIcon]}>
             <MaterialCommunityIcons
               name="road-variant"
               size={22}
-              color="#E8EDF5"
+              color="#B8BCC4"
             />
           </View>
           <View style={indexStyles.statContent}>
