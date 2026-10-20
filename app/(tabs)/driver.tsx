@@ -416,9 +416,9 @@ export default function DriverScreen() {
 
       {driverLoading ? null : !hasAccount ? ( 
         <Text style={driverStyles.loginMessage}> 
-          Please log in or open an{' '} 
-          <Text style={driverStyles.accountLink} onPress={() => router.push('/driver_account')} > account </Text>
-            {' '}to accept trips. 
+          Please log in or open a{' '} 
+          <Text style={driverStyles.accountLink} onPress={() => router.push('/driver_account')} >driver account</Text>
+            {' '}to view trips. 
         </Text> ) : 
         ( 
         <View style={driverStyles.availabilityRow}> 
