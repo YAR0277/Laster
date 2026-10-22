@@ -435,3 +435,8 @@ entrypoint = "./functions/cleanup-cargo-photo/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/cleanup-cargo-photo/*.html" ]
+
+[functions.create-customer-payment-setup]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/create-customer-payment-setup/index.ts"
