@@ -123,7 +123,6 @@ Deno.serve(async (req) => {
         });
         return jsonResponse({ error: 'The trip status changed or could not be aborted. Refresh and retry.' }, 409);
       }
-      trip.status = abortedTrip.status;
     }
 
     // No authorization means there is nothing to release. Do not make a missing
