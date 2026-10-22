@@ -5,6 +5,7 @@ import {
   useRouter,
 } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
+import { useStripe } from '@stripe/stripe-react-native';
 import {
   Alert,
   Pressable,
@@ -25,6 +26,8 @@ export default function CustomerAccountScreen() {
   const { trips, refreshTrips } = useTrip();
   const { user: supabaseAuthUser } = useAuth();
   const router = useRouter();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const [paymentLoading, setPaymentLoading] = useState(false);
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -88,6 +91,7 @@ export default function CustomerAccountScreen() {
       setPhone(customer.phone);
       setEmail(customer.email);
       setPayment(customer.payment);
+      
     } else {
       setFirstName('');
       setLastName('');
@@ -154,7 +158,7 @@ export default function CustomerAccountScreen() {
         last_name: lastName,
         phone,
         email,
-        payment,
+        payment: 'No card saved',
       });
 
     if (customerError) {
@@ -184,7 +188,7 @@ export default function CustomerAccountScreen() {
       lastName,
       phone,
       email,
-      payment,
+      payment: 'No card saved',
     });
 
     setPassword('');
@@ -238,6 +242,73 @@ export default function CustomerAccountScreen() {
       'Login Successful',
       'Welcome back.'
     );
+  };
+
+  const setupCustomerCard = async () => {
+    if (!customer || !supabaseAuthUser) {
+      Alert.alert('Login Required', 'Please log in to add a payment card.');
+      return;
+    }
+
+    setPaymentLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'create-customer-payment-setup',
+        { body: {} },
+      );
+
+      if (error || !data?.setupIntentClientSecret || !data?.customerId || !data?.ephemeralKeySecret) {
+        throw new Error(data?.error || error?.message || 'Could not start secure card setup.');
+      }
+
+      const { error: initError } = await initPaymentSheet({
+        merchantDisplayName: 'Laster',
+        customerId: data.customerId,
+        customerEphemeralKeySecret: data.ephemeralKeySecret,
+        setupIntentClientSecret: data.setupIntentClientSecret,
+        returnURL: 'laster://stripe-redirect',
+        allowsDelayedPaymentMethods: false,
+      });
+
+      if (initError) {
+        throw new Error(initError.message);
+      }
+
+      const { error: presentError } = await presentPaymentSheet();
+      if (presentError) {
+        if (presentError.code === 'Canceled') return;
+        throw new Error(presentError.message);
+      }
+
+      const setupIntentId = data.setupIntentClientSecret.split('_secret_')[0];
+      const { data: verified, error: verifyError } = await supabase.functions.invoke(
+        'verify-customer-payment-method',
+        { body: { setupIntentId } },
+      );
+
+      if (verifyError || verified?.status !== 'saved') {
+        throw new Error(verified?.error || verifyError?.message || 'Card setup could not be verified.');
+      }
+
+      const cardLabel = `${String(verified.brand).toUpperCase()} ending in ${verified.last4}`;
+      setPayment(cardLabel);
+      setCustomer({
+        ...customer,
+        payment: cardLabel,
+        paymentMethodBrand: verified.brand,
+        paymentMethodLast4: verified.last4,
+        paymentMethodExpMonth: verified.expMonth,
+        paymentMethodExpYear: verified.expYear,
+      });
+      Alert.alert('Card Saved', `Your ${cardLabel} card is saved for Laster payments.`);
+    } catch (error) {
+      Alert.alert(
+        'Payment Setup Error',
+        error instanceof Error ? error.message : 'Unable to save your card.',
+      );
+    } finally {
+      setPaymentLoading(false);
+    }
   };
 
   const logout = async () => {
@@ -422,17 +493,35 @@ export default function CustomerAccountScreen() {
       {/* Payment */}
       {(hasAccount || accountMode === 'open') && (
         <View style={accountStyles.section}>
-        <Text style={accountStyles.sectionTitle}>Payment</Text>
-
-        <Text style={accountStyles.fieldLabel}>Payment Method</Text>
-
-        <TextInput
-          style={accountStyles.input}
-          placeholder="Enter payment method"
-          placeholderTextColor="#888"
-          value={payment}
-          onChangeText={setPayment}
-        />
+          <Text style={accountStyles.sectionTitle}>Payment</Text>
+          {hasAccount && customer?.paymentMethodBrand && customer.paymentMethodLast4 ? (
+            <>
+              <Text style={accountStyles.fieldLabel}>Saved card</Text>
+              <Text style={accountStyles.infoValue}>
+                {String(customer.paymentMethodBrand).toUpperCase()} ending in {customer.paymentMethodLast4}
+              </Text>
+              {customer.paymentMethodExpMonth != null && customer.paymentMethodExpYear != null && (
+                <Text style={accountStyles.infoLabel}>
+                  Expires {String(customer.paymentMethodExpMonth).padStart(2, '0')}/{customer.paymentMethodExpYear}
+                </Text>
+              )}
+            </>
+          ) : (
+            <Text style={accountStyles.emptyText}>
+              {hasAccount ? 'No payment card saved yet.' : 'You can add a card after opening your account.'}
+            </Text>
+          )}
+          {hasAccount && (
+            <Pressable
+              style={accountStyles.primaryButton}
+              onPress={setupCustomerCard}
+              disabled={paymentLoading}
+            >
+              <Text style={accountStyles.buttonText}>
+                {paymentLoading ? 'Processing…' : customer?.paymentMethodLast4 ? 'Change Card' : 'Add Payment Card'}
+              </Text>
+            </Pressable>
+          )}
         </View>
       )}
 
