@@ -450,3 +450,13 @@ entrypoint = "./functions/verify-customer-payment-method/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/request-trip/index.ts"
+
+[functions.complete-trip]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/complete-trip/index.ts"
+
+[functions.abort-trip]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/abort-trip/index.ts"

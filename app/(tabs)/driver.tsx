@@ -373,37 +373,24 @@ export default function DriverScreen() {
   };
 
   const abortTrip = async (tripID: string) => {
-    if (!driver) {
-      return;
-    }
+    if (!driver) return;
 
-    const { error } = await supabase
-      .from('trips')
-      .update({
-        status: 'Aborted',
-        completed_at: new Date().toISOString(),
-      })
-      .eq('trip_id', tripID)
-      .eq('driver_id', driver.driverID)
-      .eq('status', 'Accepted');
+    const { data, error } = await supabase.functions.invoke('abort-trip', {
+      body: { tripID },
+    });
 
-    if (error) {
+    if (error || data?.error) {
+      console.error('Abort trip error:', error?.message ?? data?.error);
       Alert.alert(
         'Trip Error',
-        `The trip could not be aborted.\n\n${error.message}`
+        data?.error ?? `The trip could not be aborted.\n\n${error?.message ?? 'Please try again.'}`,
       );
       return;
     }
 
-    // Keep the local UI in sync with the database.
     setTrips((currentTrips) =>
       currentTrips.map((trip) =>
-        trip.tripID === tripID
-          ? {
-              ...trip,
-              status: 'Aborted',
-            }
-          : trip
+        trip.tripID === tripID ? { ...trip, status: 'Aborted' } : trip
       )
     );
   };

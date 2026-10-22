@@ -419,110 +419,47 @@ export default function RenterScreen() {
   };
 
   const completeTrip = async () => {
-    if (!currentTripID) {
-      return;
-    }
+    if (!currentTripID) return;
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    console.log('Complete trip auth check:', {
-      authUserID: user?.id ?? null,
-      authError: authError?.message ?? null,
-      currentTripID,
+    const { data, error } = await supabase.functions.invoke('complete-trip', {
+      body: { tripID: currentTripID },
     });
 
-    const { data, error } = await supabase
-      .from('trips')
-      .update({
-        status: 'Completed',
-        completed_at: new Date().toISOString(),
-      })
-      .eq('trip_id', currentTripID)
-      .select('trip_id, driver_id, status, completed_at');
-
-    if (error) {
-      console.error('Complete trip error:', error);
+    if (error || data?.error) {
+      console.error('Complete trip error:', error?.message ?? data?.error);
       Alert.alert(
         'Trip Error',
-        `The trip could not be completed.\n\n${error.message}`
+        data?.error ?? `The trip could not be completed.\n\n${error?.message ?? 'Please try again.'}`,
       );
       return;
     }
-
-    if (!data || data.length === 0) {
-      console.error(
-        'Complete trip: Supabase updated zero rows.',
-        { currentTripID }
-      );
-      Alert.alert(
-        'Trip Error',
-        'The trip was not updated in the database. Please check the database permissions and trip ID.'
-      );
-      return;
-    }
-
-    console.log('Complete trip: database updated:', data[0]);
 
     setTrips((currentTrips) =>
       currentTrips.map((trip) =>
-        trip.tripID === currentTripID
-          ? { ...trip, status: 'Completed' }
-          : trip
+        trip.tripID === currentTripID ? { ...trip, status: 'Completed' } : trip
       )
     );
   };
 
   const abortTrip = async () => {
+    if (!currentTripID || currentTrip?.status !== 'Requested') return;
 
-  const { data: authData } = await supabase.auth.getUser();
-
-    console.log('Abort trip diagnostic:', {
-      currentTripID,
-      currentTripStatus: currentTrip?.status,
-      currentTripCustomerID: currentTrip?.customerID,
-      authenticatedUserID: authData.user?.id,
+    const { data, error } = await supabase.functions.invoke('abort-trip', {
+      body: { tripID: currentTripID },
     });
 
-    if (!currentTripID || currentTrip?.status !== 'Requested') {
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from('trips')
-      .update({
-        status: 'Aborted',
-        completed_at: new Date().toISOString(),
-      })
-      .eq('trip_id', currentTripID)
-      .eq('status', 'Requested')
-      .select('trip_id, status');
-
-    if (error) {
+    if (error || data?.error) {
+      console.error('Abort trip error:', error?.message ?? data?.error);
       Alert.alert(
         'Trip Error',
-        `The trip could not be aborted.\n\n${error.message}`
+        data?.error ?? `The trip could not be aborted.\n\n${error?.message ?? 'Please try again.'}`,
       );
       return;
     }
 
-    // An update can return no error but still modify zero rows.
-    if (!data || data.length === 0) {
-      Alert.alert(
-        'Trip Error',
-        'The trip was not updated in the database. Check the trip status and your Supabase Row Level Security policies.'
-      );
-      return;
-    }
-
-    // Update local state only after confirming the database update.
     setTrips((currentTrips) =>
       currentTrips.map((trip) =>
-        trip.tripID === currentTripID
-          ? { ...trip, status: 'Aborted' }
-          : trip
+        trip.tripID === currentTripID ? { ...trip, status: 'Aborted' } : trip
       )
     );
   };
