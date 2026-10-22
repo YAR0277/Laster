@@ -416,11 +416,17 @@ export default function DriverScreen() {
 
       {/* Page Header */}
       <View style={driverStyles.pageHeader}>
-
         <View style={driverStyles.pageHeaderContent}>
-          <View>
+          <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={driverStyles.pageSubtitle}>
-              Available Trips
+              To view trips{"\n"}
+              Log in or{' '}
+              <Text
+                style={driverStyles.accountLink}
+                onPress={() => router.push('/driver_account')}
+              >
+                open an account
+              </Text>
             </Text>
           </View>
 
@@ -444,28 +450,25 @@ export default function DriverScreen() {
           </Pressable>
         </View>
 
-      {driverLoading ? null : !hasAccount ? ( 
-        <Text style={driverStyles.loginMessage}> 
-          Please log in or open a{' '} 
-          <Text style={driverStyles.accountLink} onPress={() => router.push('/driver_account')} >driver account</Text>
-            {' '}to view trips. 
-        </Text> ) : 
-        ( 
-        <View style={driverStyles.availabilityRow}> 
-          <Text style={driverStyles.availabilityText}> I'm available to receive trips </Text> 
-          <Switch
-            value={available}
-            onValueChange={handleAvailabilityChange}
-            disabled={!hasAccount || availabilityLoading}
-            trackColor={{
-              false: '#6B7280',
-              true: '#F59E0B',
-            }}
-            thumbColor="#F5F5F5"
-            ios_backgroundColor="#6B7280"
-          /> 
-        </View> )}
+        {driverLoading ? null : hasAccount ? (
+          <View style={driverStyles.availabilityRow}>
+            <Text style={driverStyles.availabilityText}>
+              I'm available to receive trips
+            </Text>
 
+            <Switch
+              value={available}
+              onValueChange={handleAvailabilityChange}
+              disabled={!hasAccount || availabilityLoading}
+              trackColor={{
+                false: '#6B7280',
+                true: '#F59E0B',
+              }}
+              thumbColor="#F5F5F5"
+              ios_backgroundColor="#6B7280"
+            />
+          </View>
+        ) : null}
       </View>
 
       {/* Trip Cards */}
