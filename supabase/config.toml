@@ -440,3 +440,8 @@ entrypoint = "./functions/cleanup-cargo-photo/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/create-customer-payment-setup/index.ts"
+
+[functions.verify-customer-payment-method]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/verify-customer-payment-method/index.ts"
