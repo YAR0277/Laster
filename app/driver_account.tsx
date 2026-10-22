@@ -3,11 +3,12 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Image,
+  Linking,
   Pressable,
   ScrollView,
   Text,
   TextInput,
-  View,
+  View
 } from 'react-native';
 
 import { File } from 'expo-file-system';
@@ -42,10 +43,13 @@ export default function DriverAccountScreen() {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [insurancePolicy, setInsurancePolicy] = useState('');
   const [insuranceCompany, setInsuranceCompany] = useState('');
-  const [bankAccount, setBankAccount] = useState('');
   const [accountMode, setAccountMode] =
     useState<'login' | 'open'>('login');
   const hasAccount = supabaseAuthUser !== null && driver !== null;
+  const [payoutLoading, setPayoutLoading] = useState(false);
+  const [payoutStatus, setPayoutStatus] = useState<
+    'checking' | 'required' | 'ready' | 'restricted' | 'error'
+  >('checking');
 
   const formatTripDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -102,7 +106,6 @@ export default function DriverAccountScreen() {
       setDateOfBirth(driver.dateOfBirth);
       setInsurancePolicy(driver.insurancePolicy);
       setInsuranceCompany(driver.insuranceCompany);
-      setBankAccount(driver.bankAccount);
     } else {
       setFirstName('');
       setLastName('');
@@ -117,7 +120,6 @@ export default function DriverAccountScreen() {
       setDateOfBirth('');
       setInsurancePolicy('');
       setInsuranceCompany('');
-      setBankAccount('');
     }
   }, [driver]);
 
@@ -267,7 +269,6 @@ export default function DriverAccountScreen() {
         date_of_birth: dateOfBirth,
         insurance_policy: insurancePolicy,
         insurance_company: insuranceCompany,
-        bank_account: bankAccount,
         rating: null,
         number_of_ratings: 0,
         number_of_trips: 0,
@@ -309,7 +310,6 @@ export default function DriverAccountScreen() {
       dateOfBirth,
       insurancePolicy,
       insuranceCompany,
-      bankAccount,
       rating: null,
       numberOfRatings: 0,
       numberOfTrips: 0,
@@ -357,7 +357,6 @@ export default function DriverAccountScreen() {
         date_of_birth: dateOfBirth,
         insurance_policy: insurancePolicy,
         insurance_company: insuranceCompany,
-        bank_account: bankAccount,
       })
       .eq('driver_id', driver.driverID);
 
@@ -399,7 +398,6 @@ export default function DriverAccountScreen() {
       dateOfBirth,
       insurancePolicy,
       insuranceCompany,
-      bankAccount,
     });
 
     Alert.alert(
@@ -505,6 +503,46 @@ export default function DriverAccountScreen() {
     router.replace('/(tabs)/driver');
   };
 
+  const setUpPayouts = async () => {
+    if (payoutLoading) {
+      return;
+    }
+
+    setPayoutLoading(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'create-driver-payout-onboarding'
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data?.url || typeof data.url !== 'string') {
+        throw new Error(
+          data?.error ?? 'The payout setup link could not be created.'
+        );
+      }
+
+      const supported = await Linking.canOpenURL(data.url);
+
+      if (!supported) {
+        throw new Error('The payout setup page could not be opened.');
+      }
+
+      await Linking.openURL(data.url);
+    } catch (error) {
+      Alert.alert(
+        'Payout Setup Error',
+        error instanceof Error
+          ? error.message
+          : 'Payout setup could not be started. Please try again.'
+      );
+    } finally {
+      setPayoutLoading(false);
+    }
+  };  
   return (
     <ScrollView
       style={commonStyles.container}
@@ -755,37 +793,16 @@ export default function DriverAccountScreen() {
       </View>
       )}
 
-      {/* Bank Account */}
-      {(hasAccount || accountMode === 'open') && (
-        <View style={accountStyles.section}>
-        <Text style={accountStyles.sectionTitle}>
-          Bank Account
-        </Text>
-
-        <Text style={accountStyles.fieldLabel}>
-          Payment Account
-        </Text>
-
-        <TextInput
-          style={accountStyles.input}
-          placeholder="Enter bank account information"
-          placeholderTextColor="#888"
-          value={bankAccount}
-          onChangeText={setBankAccount}
-        />
-      </View>
-      )}
-
       {/* Rating */}
-      <View style={accountStyles.section}>
-        <Text style={accountStyles.sectionTitle}>Rating</Text>
+      {hasAccount && driver?.rating != null && (
+        <View style={accountStyles.section}>
+          <Text style={accountStyles.sectionTitle}>Rating</Text>
 
-        <Text style={accountStyles.fieldLabel}>
-          {driver?.rating !== null && driver?.rating !== undefined
-            ? `${driver.rating.toFixed(1)} / 5`
-            : 'No rating yet.'}
-        </Text>
-      </View>
+          <Text style={accountStyles.fieldLabel}>
+            {driver.rating.toFixed(1)} / 5
+          </Text>
+        </View>
+      )}
 
       {/* Trip History */}
       {hasAccount && (
@@ -875,6 +892,16 @@ export default function DriverAccountScreen() {
         </>
       ) : (
           <>
+            <Pressable
+              style={accountStyles.primaryButton}
+              onPress={setUpPayouts}
+              disabled={payoutLoading}
+            >
+              <Text style={accountStyles.buttonText}>
+                {payoutLoading ? 'Opening Payout Setup...' : 'Set Up Payouts'}
+              </Text>
+            </Pressable>
+
             <Pressable
               style={accountStyles.primaryButton}
               onPress={logout}

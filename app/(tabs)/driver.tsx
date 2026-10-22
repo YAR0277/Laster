@@ -93,6 +93,35 @@ export default function DriverScreen() {
       return;
     }
 
+    // Verify the driver's Stripe payout readiness first.
+    const { data: payoutCheck, error: payoutCheckError } =
+      await supabase.functions.invoke(
+        'verify-driver-payout-method',
+        { body: {} }
+      );
+
+    if (payoutCheckError) {
+      console.error(
+        'Payout readiness check failed:',
+        payoutCheckError.message
+      );
+
+      Alert.alert(
+        'Payout Verification Error',
+        'Your payout readiness could not be verified. Please try again.'
+      );
+      return;
+    }
+
+    if (payoutCheck?.status !== 'ready') {
+      Alert.alert(
+        'Payout Setup Required',
+        payoutCheck?.message ??
+          'Your Stripe account must be ready for payouts before you can accept trips.'
+      );
+      return;
+    }
+
     // Get the driver's current location.
     const { status } =
       await Location.requestForegroundPermissionsAsync();
@@ -122,13 +151,14 @@ export default function DriverScreen() {
       );
       return;
     }
-        
+
+    // Check whether the driver already has an active trip.
     const { data: acceptedTrip, error: acceptedTripError } =
       await supabase
         .from('trips')
         .select('trip_id')
         .eq('driver_id', driver.driverID)
-        .eq('status', 'Accepted')
+        .in('status', ['Accepted', 'Started'])
         .limit(1)
         .maybeSingle();
 
@@ -143,7 +173,7 @@ export default function DriverScreen() {
     if (acceptedTrip) {
       Alert.alert(
         'Trip Not Accepted',
-        'Can only accept one trip at a time.'
+        'You can only accept one trip at a time.'
       );
       return;
     }
@@ -178,7 +208,7 @@ export default function DriverScreen() {
       return;
     }
 
-    // Calculate driving distance from Tom to the pickup point.
+    // Calculate driving distance from the driver to the pickup point.
     const token = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
     if (!token) {
@@ -230,7 +260,7 @@ export default function DriverScreen() {
         truck_photo: driver.truckPhoto,
         driver_arrival_lat: driverLatitude,
         driver_arrival_lon: driverLongitude,
-        distance_to_arrival: arrivalDistance,        
+        distance_to_arrival: arrivalDistance,
         status: 'Accepted',
       })
       .eq('trip_id', tripID)
@@ -278,7 +308,7 @@ export default function DriverScreen() {
       );
     } else {
       setAvailable(false);
-    }    
+    }
 
     // Keep the local UI in sync with the database.
     setTrips((currentTrips) =>

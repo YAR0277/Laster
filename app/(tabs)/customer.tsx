@@ -1,5 +1,8 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { File } from 'expo-file-system';
+import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -12,10 +15,6 @@ import {
   View,
 } from 'react-native';
 import 'react-native-get-random-values';
-
-import { File } from 'expo-file-system';
-import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
 import { v4 as uuidv4 } from 'uuid';
 import { styles as commonStyles } from '../../components/common';
 import { styles as customerStyles } from '../../components/customer';
@@ -26,7 +25,6 @@ import { useAuth } from '../../data/auth';
 import { useCustomer } from '../../data/customer';
 import { Trip, useTrip } from '../../data/trip';
 import { supabase } from '../../lib/supabase';
-
 
 export default function RenterScreen() {
   const [from, setFrom] = useState('');
@@ -53,7 +51,6 @@ export default function RenterScreen() {
   const [calculatingRoute, setCalculatingRoute] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);  
   const METERS_PER_MILE = 1609.344;
-  const DRIVER_PAYOUT_PERCENT = 0.85;
 
   useEffect(() => {
     let cancelled = false;
@@ -440,85 +437,80 @@ export default function RenterScreen() {
       cargoPhotoUrl = data.publicUrl;
     }
 
-    const newTripID = `T${uuidv4()}`;
+    const { data: result, error } = await supabase.functions.invoke(
+      'request-trip',
+      {
+        body: {
+          from,
+          to,
+          cargo,
+          cargoPhoto: cargoPhotoUrl,
+          firstName,
+          phone,
+          payment,
+          fromLatitude: fromLocation?.latitude,
+          fromLongitude: fromLocation?.longitude,
+          toLatitude: toLocation?.latitude,
+          toLongitude: toLocation?.longitude,
+        },
+      },
+    );
 
-    const newTrip: Trip = {
-      tripID: newTripID,
-      customerID,
-      driverID: null,
-      customerFirstName: firstName,
-      driverFirstName: '',
-      truck: '',
-      truckPhoto: '',
-      from,
-      to,
-      cargo,
-      cargoPhoto: cargoPhotoUrl,
-      phone,
-      payment,
-      distance: routeDistance,
-      distanceToArrival: null,
-      fare: routeFare,
-      payout: Math.round(routeFare * DRIVER_PAYOUT_PERCENT * 100) / 100,
-      requestedAt: new Date().toISOString(),
-      completedAt: null,
-      status: 'Requested' as const,
-      driverRating: null,
-      driverArrivalTrip: null,
-    };
-
-    const { error } = await supabase
-      .from('trips')
-      .insert({
-        trip_id: newTrip.tripID,
-        customer_id: newTrip.customerID,
-        driver_id: newTrip.driverID,
-        customer_first_name: newTrip.customerFirstName,
-        driver_first_name: newTrip.driverFirstName,
-        truck: newTrip.truck,
-        truck_photo: newTrip.truckPhoto,
-        from_location: newTrip.from,
-        to_location: newTrip.to,
-        trip_from_lat: fromLocation?.latitude ?? null,
-        trip_from_lon: fromLocation?.longitude ?? null,
-        trip_to_lat: toLocation?.latitude ?? null,
-        trip_to_lon: toLocation?.longitude ?? null,        
-        cargo: newTrip.cargo,
-        cargo_photo: newTrip.cargoPhoto,
-        phone: newTrip.phone,
-        payment: newTrip.payment,
-        distance: newTrip.distance,
-        distance_to_arrival: newTrip.distanceToArrival,
-        fare: newTrip.fare,
-        payout: newTrip.payout,
-        status: newTrip.status,
-        driver_arrival_lat: newTrip.driverArrivalTrip?.lat ?? null,
-        driver_arrival_lon: newTrip.driverArrivalTrip?.lon ?? null,
-      });
-
-    if (error) {
+    if (error || !result?.trip) {
       Alert.alert(
         'Trip Error',
-        `The trip could not be requested.\n\n${error.message}`
+        `The trip could not be requested.\n\n${
+          result?.error ?? error?.message ?? 'Unknown error'
+        }`,
       );
       return;
     }
 
-    // Keep the local context in sync with the database.
+    const savedTrip = result.trip;
+
+    const newTrip: Trip = {
+      tripID: savedTrip.trip_id,
+      customerID: savedTrip.customer_id,
+      driverID: savedTrip.driver_id,
+      customerFirstName: savedTrip.customer_first_name,
+      driverFirstName: savedTrip.driver_first_name,
+      truck: savedTrip.truck,
+      truckPhoto: savedTrip.truck_photo,
+      from: savedTrip.from_location,
+      to: savedTrip.to_location,
+      cargo: savedTrip.cargo,
+      cargoPhoto: savedTrip.cargo_photo,
+      phone: savedTrip.phone,
+      payment: savedTrip.payment,
+      distance: savedTrip.distance,
+      distanceToArrival: savedTrip.distance_to_arrival,
+      fare: savedTrip.fare,
+      payout: savedTrip.payout,
+      requestedAt: savedTrip.requested_at,
+      completedAt: savedTrip.completed_at,
+      status: savedTrip.status,
+      driverRating: null,
+      driverArrivalTrip: null,
+    };
+
+    // Keep the local context in sync with the saved database record.
     setTrips((currentTrips) => [
       ...currentTrips,
       newTrip,
     ]);
 
-    setCurrentTripID(newTripID);
+    setCurrentTripID(newTrip.tripID);
 
     await AsyncStorage.setItem(
       'laster_current_trip_id',
-      newTripID
+      newTrip.tripID,
     );
 
-    await AsyncStorage.removeItem(
-      'laster_pending_trip'
+    await AsyncStorage.removeItem('laster_pending_trip');
+
+    Alert.alert(
+      'Trip Requested',
+      `Your trip has been requested.\n\nFare: $${Number(newTrip.fare).toFixed(2)}`,
     );
   };
 

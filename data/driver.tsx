@@ -24,7 +24,6 @@ export type Driver = {
   dateOfBirth: string;
   insurancePolicy: string;
   insuranceCompany: string;
-  bankAccount: string;
   rating: number | null;
   numberOfRatings: number;
   numberOfTrips: number;
@@ -84,7 +83,6 @@ export function DriverProvider({ children }: { children: ReactNode }) {
         dateOfBirth: data.date_of_birth,
         insurancePolicy: data.insurance_policy,
         insuranceCompany: data.insurance_company,
-        bankAccount: data.bank_account,
         rating: data.rating,
         numberOfRatings: data.number_of_ratings,
         numberOfTrips: data.number_of_trips,
