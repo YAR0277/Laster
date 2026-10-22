@@ -139,7 +139,6 @@ Deno.serve(async (req) => {
       form: new URLSearchParams({
         customer: stripeCustomerId,
         usage: 'off_session',
-        'payment_method_types[]': 'card',
         'metadata[supabase_user_id]': user.id,
       }),
       idempotencyKey: `laster-setup-${user.id}-${crypto.randomUUID()}`,
