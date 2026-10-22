@@ -471,17 +471,17 @@ export default function RenterScreen() {
       'laster_current_trip_id'
     );
 
-    setFrom('');
+    // Keep the customer's starting location and logged-in profile/payment
+    // details for the next trip. Only clear trip-specific destination/cargo data.
     setTo('');
+    setToLocation(null);
     setCargo('');
-    setCargoPhoto(null);    
-    setFirstName('');
-    setPhone('');
-    setPayment('');
+    setCargoPhoto(null);
     setRating(null);
     setRatingSubmitted(false);
     setRouteDistance(null);
     setRouteFare(null);
+    setRouteError(null);
   };
 
   const submitRating = async () => {
