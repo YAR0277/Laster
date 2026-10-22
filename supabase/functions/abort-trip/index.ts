@@ -54,8 +54,8 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY');
-    if (!url || !anonKey || !serviceKey || !stripeSecret) {
-      return jsonResponse({ error: 'Payment service is not configured.' }, 500);
+    if (!url || !anonKey || !serviceKey) {
+      return jsonResponse({ error: 'Trip service is not configured.' }, 500);
     }
 
     const authorization = req.headers.get('Authorization');
@@ -93,63 +93,153 @@ Deno.serve(async (req) => {
     const isAssignedDriver = trip.driver_id === user.id;
     if (!isCustomer && !isAssignedDriver) return jsonResponse({ error: 'You cannot abort this trip.' }, 403);
 
-    if (trip.status === 'Aborted' && trip.payment_status === 'cancelled') {
-      return jsonResponse({ tripID: trip.trip_id, status: 'Aborted', paymentStatus: 'cancelled' });
-    }
+    const alreadyAborted = trip.status === 'Aborted';
     const customerCanAbort = isCustomer && trip.status === 'Requested';
     const driverCanAbort = isAssignedDriver && trip.status === 'Accepted';
-    if (!customerCanAbort && !driverCanAbort) {
+
+    if (!alreadyAborted && !customerCanAbort && !driverCanAbort) {
       return jsonResponse({ error: 'This trip cannot be aborted from its current status.' }, 409);
     }
-    if (trip.payment_status !== 'authorized' || !trip.stripe_payment_intent_id || trip.fare == null) {
-      return jsonResponse({ error: 'The trip does not have a releasable payment authorization.' }, 409);
+
+    // Persist the trip cancellation independently of payment authorization/release.
+    // Conditional status matching prevents a stale request from aborting a trip
+    // that changed state after it was read.
+    if (!alreadyAborted) {
+      const { data: abortedTrip, error: abortError } = await admin
+        .from('trips')
+        .update({
+          status: 'Aborted',
+          completed_at: new Date().toISOString(),
+        })
+        .eq('trip_id', trip.trip_id)
+        .eq('status', trip.status)
+        .select('trip_id, status, payment_status')
+        .maybeSingle();
+
+      if (abortError || !abortedTrip) {
+        console.error('Trip abort update failed:', {
+          tripID: trip.trip_id,
+          error: abortError?.message,
+        });
+        return jsonResponse({ error: 'The trip status changed or could not be aborted. Refresh and retry.' }, 409);
+      }
+      trip.status = abortedTrip.status;
+    }
+
+    // No authorization means there is nothing to release. Do not make a missing
+    // or failed authorization prevent the trip itself from being aborted.
+    if (trip.payment_status !== 'authorized') {
+      return jsonResponse({
+        tripID: trip.trip_id,
+        status: 'Aborted',
+        paymentStatus: trip.payment_status,
+        paymentReleasePending: false,
+      });
+    }
+
+    // If an authorization is recorded but the required details/configuration are
+    // missing, leave payment_status unchanged so this can be reconciled later.
+    if (!trip.stripe_payment_intent_id || trip.fare == null || !stripeSecret) {
+      console.error('Aborted trip has an authorization that cannot currently be released:', {
+        tripID: trip.trip_id,
+        hasPaymentIntent: Boolean(trip.stripe_payment_intent_id),
+        hasFare: trip.fare != null,
+        stripeConfigured: Boolean(stripeSecret),
+      });
+      return jsonResponse({
+        tripID: trip.trip_id,
+        status: 'Aborted',
+        paymentStatus: trip.payment_status,
+        paymentReleasePending: true,
+        message: 'The trip was aborted, but its payment authorization still needs to be released.',
+      });
     }
 
     const intentPath = `/payment_intents/${encodeURIComponent(trip.stripe_payment_intent_id)}`;
-    let intent = await stripeRequest(intentPath, stripeSecret);
-    if (
-      intent.metadata?.laster_trip_id !== trip.trip_id ||
-      intent.currency !== 'usd' ||
-      Number(intent.amount) !== Math.round(Number(trip.fare) * 100)
-    ) {
-      console.error('PaymentIntent does not match trip:', trip.trip_id);
-      return jsonResponse({ error: 'The trip payment could not be verified.' }, 409);
-    }
+    try {
+      let intent = await stripeRequest(intentPath, stripeSecret);
+      if (
+        intent.metadata?.laster_trip_id !== trip.trip_id ||
+        intent.currency !== 'usd' ||
+        Number(intent.amount) !== Math.round(Number(trip.fare) * 100)
+      ) {
+        console.error('PaymentIntent does not match aborted trip:', trip.trip_id);
+        return jsonResponse({
+          tripID: trip.trip_id,
+          status: 'Aborted',
+          paymentStatus: trip.payment_status,
+          paymentReleasePending: true,
+          message: 'The trip was aborted, but the payment authorization could not be verified and needs review.',
+        });
+      }
 
-    if (intent.status === 'requires_capture') {
-      intent = await stripeRequest(
-        `${intentPath}/cancel`,
-        stripeSecret,
-        'POST',
-        `laster-trip-cancel-${trip.trip_id}`,
-      );
-    }
-    if (intent.status !== 'canceled') {
-      // Captured payments need a separate refund flow; never label them cancelled.
-      return jsonResponse({ error: 'The authorization could not be released. Please contact support.' }, 409);
-    }
+      if (intent.status === 'requires_capture') {
+        intent = await stripeRequest(
+          `${intentPath}/cancel`,
+          stripeSecret,
+          'POST',
+          `laster-trip-cancel-${trip.trip_id}`,
+        );
+      }
 
-    const { data: updated, error: updateError } = await admin
-      .from('trips')
-      .update({
-        status: 'Aborted',
-        payment_status: 'cancelled',
-        completed_at: new Date().toISOString(),
-      })
-      .eq('trip_id', trip.trip_id)
-      .eq('status', trip.status)
-      .eq('payment_status', 'authorized')
-      .select('trip_id, status, payment_status')
-      .maybeSingle();
+      if (intent.status !== 'canceled') {
+        // Captured/otherwise non-cancellable payments must never be labelled
+        // cancelled. Keep the stored payment status for reconciliation.
+        console.error('PaymentIntent was not cancelled for aborted trip:', {
+          tripID: trip.trip_id,
+          stripeStatus: intent.status,
+        });
+        return jsonResponse({
+          tripID: trip.trip_id,
+          status: 'Aborted',
+          paymentStatus: trip.payment_status,
+          paymentReleasePending: true,
+          message: 'The trip was aborted, but its payment authorization could not be released and needs review.',
+        });
+      }
 
-    if (updateError || !updated) {
-      console.error('Cancelled authorization could not be recorded:', {
-        tripID: trip.trip_id,
-        error: updateError?.message,
+      const { data: paymentUpdated, error: paymentUpdateError } = await admin
+        .from('trips')
+        .update({ payment_status: 'cancelled' })
+        .eq('trip_id', trip.trip_id)
+        .eq('status', 'Aborted')
+        .eq('payment_status', 'authorized')
+        .select('trip_id, status, payment_status')
+        .maybeSingle();
+
+      if (paymentUpdateError || !paymentUpdated) {
+        console.error('Released authorization could not be recorded:', {
+          tripID: trip.trip_id,
+          error: paymentUpdateError?.message,
+        });
+        return jsonResponse({
+          tripID: trip.trip_id,
+          status: 'Aborted',
+          paymentStatus: 'authorized',
+          paymentReleasePending: true,
+          message: 'The trip was aborted and Stripe released the authorization, but the payment update needs retrying.',
+        });
+      }
+
+      return jsonResponse({
+        tripID: paymentUpdated.trip_id,
+        status: paymentUpdated.status,
+        paymentStatus: paymentUpdated.payment_status,
+        paymentReleasePending: false,
       });
-      return jsonResponse({ error: 'The authorization was released, but the trip update failed. Retry aborting the trip.' }, 500);
+    } catch (releaseError) {
+      console.error('Payment release failed for aborted trip:', {
+        tripID: trip.trip_id,
+        error: releaseError instanceof Error ? releaseError.message : releaseError,
+      });
+      return jsonResponse({
+        tripID: trip.trip_id,
+        status: 'Aborted',
+        paymentStatus: trip.payment_status,
+        paymentReleasePending: true,
+        message: 'The trip was aborted, but releasing its payment authorization failed. The release can be retried.',
+      });
     }
-    return jsonResponse({ tripID: updated.trip_id, status: updated.status, paymentStatus: updated.payment_status });
   } catch (error) {
     console.error('Abort-trip failed:', error instanceof Error ? error.message : error);
     return jsonResponse({ error: 'Unable to release the trip payment authorization. Please retry or contact support.' }, 500);
