@@ -27,7 +27,13 @@
     },
     "plugins": [
       "expo-router",
-      "@stripe/stripe-react-native",
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": null,
+          "enableGooglePay": false
+        }
+      ],
       [
         "expo-splash-screen",
         {
