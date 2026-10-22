@@ -1,5 +1,6 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
@@ -17,6 +18,10 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
+    <StripeProvider
+      publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ''}
+      urlScheme="laster"
+    >
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AuthProvider>
         <CustomerProvider>
@@ -47,5 +52,6 @@ export default function RootLayout() {
       </AuthProvider>
       <StatusBar style="auto" />
     </ThemeProvider>
+    </StripeProvider>
   );
 }
