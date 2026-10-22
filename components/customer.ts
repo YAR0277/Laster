@@ -8,13 +8,19 @@ export const styles = StyleSheet.create({
 
   pageHeaderContent: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+
+  pageHeaderText: {
+    flex: 1,
+    minWidth: 0,
   },
 
   accountButton: {
     width: 42,
     height: 42,
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -23,6 +29,7 @@ export const styles = StyleSheet.create({
     fontSize: 15,
     color: '#8F96A3',
     marginTop: 4,
+    flexShrink: 1,
   },
 
   accountLink: {
