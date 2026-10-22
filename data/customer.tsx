@@ -16,6 +16,10 @@ export type Customer = {
   phone: string;
   email: string;
   payment: string;
+  paymentMethodBrand?: string | null;
+  paymentMethodLast4?: string | null;
+  paymentMethodExpMonth?: number | null;
+  paymentMethodExpYear?: number | null;
 };
 
 type CustomerContextType = {
@@ -70,6 +74,10 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
         phone: data.phone,
         email: data.email,
         payment: data.payment,
+        paymentMethodBrand: data.payment_method_brand,
+        paymentMethodLast4: data.payment_method_last4,
+        paymentMethodExpMonth: data.payment_method_exp_month,
+        paymentMethodExpYear: data.payment_method_exp_year,
       });
     };
 
