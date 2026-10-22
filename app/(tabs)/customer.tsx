@@ -4,7 +4,7 @@ import { File } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -36,7 +36,7 @@ export default function RenterScreen() {
   const [payment, setPayment] = useState('');
   const [currentTripID, setCurrentTripID] = useState<string | null>(null);
   const { trips, setTrips } = useTrip();
-  const { customer, setCustomer } = useCustomer();
+  const { customer } = useCustomer();
   const { user: supabaseAuthUser } = useAuth();
   const [rating, setRating] = useState<number | null>(null);
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
