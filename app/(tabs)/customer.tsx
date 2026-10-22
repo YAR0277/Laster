@@ -589,7 +589,7 @@ export default function RenterScreen() {
       {/* Page Header */}
       <View style={customerStyles.pageHeader}>
         <View style={customerStyles.pageHeaderContent}>
-          <View>
+          <View style={customerStyles.pageHeaderText}>
             <Text style={customerStyles.pageSubtitle}>
               Login or open a{' '}
               <Text
