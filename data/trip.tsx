@@ -148,7 +148,22 @@ export function TripProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refreshTrips();
-  }, [refreshTrips]);
+
+    // A driver may already be viewing this screen when a customer requests a
+    // trip. Refresh periodically so newly requested trips appear without
+    // requiring the driver to leave and reopen the page.
+    if (!driver || authLoading || driverLoading) {
+      return;
+    }
+
+    const refreshInterval = setInterval(() => {
+      void refreshTrips();
+    }, 10_000);
+
+    return () => {
+      clearInterval(refreshInterval);
+    };
+  }, [refreshTrips, driver, authLoading, driverLoading]);
 
   return (
     <TripContext.Provider value={{ trips, setTrips, refreshTrips }}>
