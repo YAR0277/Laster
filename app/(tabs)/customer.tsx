@@ -34,15 +34,12 @@ export default function RenterScreen() {
   const [firstName, setFirstName] = useState('');
   const [phone, setPhone] = useState('');
   const [payment, setPayment] = useState('');
-  const [openAccountSelected, setOpenAccount] = useState(false);
   const [currentTripID, setCurrentTripID] = useState<string | null>(null);
   const { trips, setTrips } = useTrip();
   const { customer, setCustomer } = useCustomer();
   const { user: supabaseAuthUser } = useAuth();
   const [rating, setRating] = useState<number | null>(null);
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
-  const [resumePendingTrip, setResumePendingTrip] = useState(false);
-  const pendingTripLoaded = useRef(false);
   const [locationPickerFor, setLocationPickerFor] = useState<'from' | 'to' | null>(null);
   const [fromLocation, setFromLocation] = useState<SelectedLocation | null>(null);
   const [toLocation, setToLocation] = useState<SelectedLocation | null>(null);
@@ -264,43 +261,6 @@ export default function RenterScreen() {
     }    
   }, [customer, currentTrip]);  
 
-  useEffect(() => {
-    if (
-      !customer ||
-      currentTrip ||
-      resumePendingTrip ||
-      pendingTripLoaded.current
-    ) {
-      return;
-    }
-
-    const loadPendingTrip = async () => {
-      const pendingTrip = await AsyncStorage.getItem(
-        'laster_pending_trip'
-      );
-
-      if (!pendingTrip) {
-        return;
-      }
-
-      pendingTripLoaded.current = true;
-
-      const trip = JSON.parse(pendingTrip);
-
-      setFrom(trip.from);
-      setTo(trip.to);
-      setCargo(trip.cargo);
-      setCargoPhoto(trip.cargoPhoto ?? null);
-      setFirstName(trip.firstName);
-      setPhone(trip.phone);
-      setPayment(trip.payment);
-
-      setResumePendingTrip(true);
-    };
-
-    loadPendingTrip();
-  }, [customer, currentTrip, resumePendingTrip]);
-
   const pickCargoPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -337,74 +297,20 @@ export default function RenterScreen() {
       return;
     }
 
-    // Guest wants to open a Laster account.
-    // Save the trip information and let the Customer Account page
-    // handle account creation.
-    if (openAccountSelected) {
-      await AsyncStorage.setItem(
-        'laster_pending_trip',
-        JSON.stringify({
-          from,
-          to,
-          cargo,
-          cargoPhoto,
-          firstName,
-          phone,
-          payment,
-          driverArrivalTrip: null,
-        })
+    // Only registered customers may request a trip.
+    if (!supabaseAuthUser || !customer) {
+      Alert.alert(
+        'Customer Account Required',
+        'Please log in or open a Laster customer account before requesting a trip.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Login / Account',
+            onPress: () => router.push('/customer_account?mode=default'),
+          },
+        ],
       );
-
-      router.push('/customer_account?mode=open');
       return;
-    }
-
-    // Existing logged-in customer
-    let customerID: string;
-
-    if (supabaseAuthUser && customer) {
-      customerID = customer.customerID;
-    } else {
-      // Guest customer
-      let guestUser = supabaseAuthUser;
-
-      if (!guestUser) {
-        const { data, error } =
-          await supabase.auth.signInAnonymously();
-
-        if (error || !data.user) {
-          Alert.alert(
-            'Customer Error',
-            `A guest session could not be created.\n\n${
-              error?.message ?? 'Unknown error'
-            }`
-          );
-          return;
-        }
-
-        guestUser = data.user;
-      }
-
-      customerID = guestUser.id;
-
-      const { error } = await supabase
-        .from('customers')
-        .upsert({
-          customer_id: customerID,
-          is_guest: true,
-          first_name: firstName,
-          phone,
-          email: '',
-          payment,
-        });
-
-      if (error) {
-        Alert.alert(
-          'Customer Error',
-          `The guest customer could not be saved.\n\n${error.message}`
-        );
-        return;
-      }
     }
 
     let cargoPhotoUrl = '';
@@ -506,27 +412,11 @@ export default function RenterScreen() {
       newTrip.tripID,
     );
 
-    await AsyncStorage.removeItem('laster_pending_trip');
-
     Alert.alert(
       'Trip Requested',
       `Your trip has been requested.\n\nFare: $${Number(newTrip.fare).toFixed(2)}`,
     );
   };
-
-  useEffect(() => {
-    if (!resumePendingTrip || !customer || currentTrip) {
-      return;
-    }
-
-    setResumePendingTrip(false);
-
-    const timer = setTimeout(() => {
-      requestTrip();
-    }, 0);
-
-    return () => clearTimeout(timer);
-  }, [resumePendingTrip, customer, currentTrip]);
 
   const completeTrip = async () => {
     if (!currentTripID) {
@@ -701,7 +591,14 @@ export default function RenterScreen() {
         <View style={customerStyles.pageHeaderContent}>
           <View>
             <Text style={customerStyles.pageSubtitle}>
-              Where do you need a pickup truck?
+              Login or open a{' '}
+              <Text
+                style={customerStyles.accountLink}
+                onPress={() => router.push('/customer_account?mode=default')}
+              >
+                customer account
+              </Text>
+              {' '}to request a pickup truck.
             </Text>
           </View>
 
@@ -1016,28 +913,6 @@ export default function RenterScreen() {
               size={22}
               color="#FFFFFF"
             />
-          </Pressable>
-        )}
-
-        {/* Open Account */}
-        {status === 'Not submitted' && !customer && (
-          <Pressable
-            style={customerStyles.accountOption}
-            onPress={() => setOpenAccount(!openAccountSelected)}
-          >
-            <MaterialCommunityIcons
-              name={
-                openAccountSelected
-                  ? 'checkbox-marked'
-                  : 'checkbox-blank-outline'
-              }
-              size={22}
-              color="#8B5CF6"
-            />
-
-            <Text style={customerStyles.accountOptionText}>
-              Open an account with Laster
-            </Text>
           </Pressable>
         )}
 
