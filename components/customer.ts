@@ -25,6 +25,11 @@ export const styles = StyleSheet.create({
     marginTop: 4,
   },
 
+  accountLink: {
+    color: '#F59E0B',
+    textDecorationLine: 'underline',
+  },
+
   tripCard: {
     padding: 20,
     borderRadius: 20,
