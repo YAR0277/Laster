@@ -445,3 +445,8 @@ entrypoint = "./functions/create-customer-payment-setup/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/verify-customer-payment-method/index.ts"
+
+[functions.request-trip]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/request-trip/index.ts"
