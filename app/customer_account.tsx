@@ -150,7 +150,6 @@ export default function CustomerAccountScreen() {
       .insert({
         customer_id: data.user.id,
         auth_user_id: data.user.id,
-        is_guest: false,
         first_name: firstName,
         last_name: lastName,
         phone,
