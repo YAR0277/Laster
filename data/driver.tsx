@@ -46,14 +46,20 @@ export function DriverProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (authLoading) {
+      console.info('[Laster diagnostics][driver-profile] Waiting for auth to finish loading.');
       return;
     }
 
     if (!supabaseAuthUser) {
+      console.info('[Laster diagnostics][driver-profile] No authenticated user; clearing driver profile.');
       setDriver(null);
       setLoading(false);
       return;
     }
+
+    console.info('[Laster diagnostics][driver-profile] Loading driver profile for authenticated user.', {
+      userId: supabaseAuthUser.id,
+    });
 
     const loadDriver = async () => {
       const { data, error } = await supabase
@@ -63,10 +69,23 @@ export function DriverProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error) {
+        console.error('[Laster diagnostics][driver-profile] Driver profile query FAILED.', {
+          userId: supabaseAuthUser.id,
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        });
         setDriver(null);
         setLoading(false);
         return;
       }
+
+      console.info('[Laster diagnostics][driver-profile] Driver profile loaded.', {
+        authenticatedUserId: supabaseAuthUser.id,
+        driverId: data.driver_id,
+        hasTruck: Boolean(data.make && data.model),
+      });
 
       setDriver({
         driverID: data.driver_id,
