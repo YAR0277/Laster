@@ -11,7 +11,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './auth';
 import { useCustomer } from './customer';
-import { useDriver } from './driver';
 
 export type TripStatus =
   | 'Not submitted'
@@ -59,46 +58,36 @@ type TripContextType = {
 
 const TripContext = createContext<TripContextType | undefined>(undefined);
 
+
 export function TripProvider({ children }: { children: ReactNode }) {
   const { user: supabaseAuthUser, loading: authLoading } = useAuth();
   const { customer } = useCustomer();
-  const { driver, loading: driverLoading } = useDriver();
   const [trips, setTrips] = useState<Trip[]>([]);
 
   const refreshTrips = useCallback(async () => {
-    if (authLoading || driverLoading) {
+    if (authLoading) {
       return;
     }
 
-    let query = supabase
-      .from('trips')
-      .select('*')
-      .order('trip_id', { ascending: true });
+    let customerID = customer?.customerID ?? null;
 
-    if (driver) {
-      // Drivers see available Requested trips and their own trips.
-      query = query.or(
-        `status.eq.Requested,driver_id.eq.${driver.driverID}`
+    // Guest customer
+    if (!customerID && !supabaseAuthUser) {
+      customerID = await AsyncStorage.getItem(
+        'laster_guest_customer_id'
       );
-    } else {
-      let customerID = customer?.customerID ?? null;
-
-      // Guest customer
-      if (!customerID && !supabaseAuthUser) {
-        customerID = await AsyncStorage.getItem(
-          'laster_guest_customer_id'
-        );
-      }
-
-      if (!customerID) {
-        setTrips([]);
-        return;
-      }
-
-      query = query.eq('customer_id', customerID);
     }
 
-    const { data, error } = await query;
+    if (!customerID) {
+      setTrips([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('trips')
+      .select('*')
+      .eq('customer_id', customerID)
+      .order('trip_id', { ascending: true });
 
     if (error) {
       console.error('Trip load error:', error.message);
@@ -138,32 +127,11 @@ export function TripProvider({ children }: { children: ReactNode }) {
             : null,
       }))
     );
-  }, [
-    authLoading,
-    driverLoading,
-    driver,
-    customer,
-    supabaseAuthUser,
-  ]);
+  }, [authLoading, customer, supabaseAuthUser]);
 
   useEffect(() => {
     void refreshTrips();
-
-    // A driver may already be viewing this screen when a customer requests a
-    // trip. Refresh periodically so newly requested trips appear without
-    // requiring the driver to leave and reopen the page.
-    if (!driver || authLoading || driverLoading) {
-      return;
-    }
-
-    const refreshInterval = setInterval(() => {
-      void refreshTrips();
-    }, 10_000);
-
-    return () => {
-      clearInterval(refreshInterval);
-    };
-  }, [refreshTrips, driver, authLoading, driverLoading]);
+  }, [refreshTrips]);
 
   return (
     <TripContext.Provider value={{ trips, setTrips, refreshTrips }}>

@@ -39,16 +39,6 @@ export default function TabLayout() {
         }}
       />
 
-      <Tabs.Screen
-        name="driver"
-        options={{
-          title: 'Driver',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="car-pickup" color={color} />
-          ),
-        }}
-      />
-
       </Tabs>
   );
 }

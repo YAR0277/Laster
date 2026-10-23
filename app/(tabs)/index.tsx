@@ -318,16 +318,6 @@ export default function HomeScreen() {
               style={indexStyles.menuItem}
               onPress={() => {
                 setMenuVisible(false);
-                router.push('/driver_account');
-              }}
-            >
-              <Text style={indexStyles.menuItemText}>Driver Account</Text>
-            </Pressable>
-
-            <Pressable
-              style={indexStyles.menuItem}
-              onPress={() => {
-                setMenuVisible(false);
                 router.push('/settings');
               }}
             >

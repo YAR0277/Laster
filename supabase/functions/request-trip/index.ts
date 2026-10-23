@@ -51,7 +51,6 @@ async function createManualCapturePaymentIntent(input: {
   form.set('confirm', 'true');
   form.set('capture_method', 'manual');
   form.set('off_session', 'true');
-  form.append('payment_method_types[]', 'card');
   form.set('metadata[laster_trip_id]', input.tripId);
 
   const result = await fetch('https://api.stripe.com/v1/payment_intents', {
@@ -225,7 +224,7 @@ Deno.serve(async (req) => {
         distance_to_arrival: null,
         fare,
         payout,
-        status: 'Payment Pending',
+        status: 'Not submitted',
         payment_status: 'not_started',
         requested_at: requestedAt,
         driver_arrival_lat: null,
