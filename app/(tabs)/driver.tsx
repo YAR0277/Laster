@@ -88,17 +88,49 @@ export default function DriverScreen() {
       trip.status === 'Started'
   );
 
+  useEffect(() => {
+    console.info('[Laster diagnostics][driver-screen] Current rendered state.', {
+      driverLoading,
+      hasDriverProfile: Boolean(driver),
+      driverId: driver?.driverID ?? null,
+      tripCount: trips.length,
+      tripStatuses: trips.map((trip) => ({
+        tripId: trip.tripID,
+        status: trip.status,
+      })),
+      visibleTripCount: trips.filter(
+        (trip) =>
+          trip.status === 'Requested' ||
+          trip.status === 'Accepted' ||
+          trip.status === 'Started'
+      ).length,
+    });
+  }, [driverLoading, driver, trips]);
+
   const acceptTrip = async (tripID: string) => {
     if (!hasAccount) {
       return;
     }
 
     // Verify the driver's Stripe payout readiness first.
+    console.info('[Laster diagnostics][edge-function] Calling verify-driver-payout-method.', {
+      driverId: driver.driverID,
+      tripID,
+    });
     const { data: payoutCheck, error: payoutCheckError } =
       await supabase.functions.invoke(
         'verify-driver-payout-method',
         { body: {} }
       );
+    console.info('[Laster diagnostics][edge-function] verify-driver-payout-method returned.', {
+      tripID,
+      errorMessage: payoutCheckError?.message ?? null,
+      response: payoutCheck ? {
+        status: payoutCheck.status ?? null,
+        error: payoutCheck.error ?? null,
+        message: payoutCheck.message ?? null,
+      } : null,
+    });
 
     if (payoutCheckError) {
       console.error(
@@ -375,8 +407,22 @@ export default function DriverScreen() {
   const abortTrip = async (tripID: string) => {
     if (!driver) return;
 
+    console.info('[Laster diagnostics][edge-function] Calling abort-trip.', {
+      driverId: driver.driverID,
+      tripID,
+    });
     const { data, error } = await supabase.functions.invoke('abort-trip', {
       body: { tripID },
+    });
+    console.info('[Laster diagnostics][edge-function] abort-trip returned.', {
+      tripID,
+      errorMessage: error?.message ?? null,
+      response: data ? {
+        error: data.error ?? null,
+        status: data.status ?? null,
+        paymentStatus: data.paymentStatus ?? null,
+        paymentReleasePending: data.paymentReleasePending ?? null,
+      } : null,
     });
 
     if (error || data?.error) {
