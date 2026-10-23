@@ -86,8 +86,18 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed.' }, 405);
 
+  const diagnosticId = crypto.randomUUID();
+  const startedAt = Date.now();
+  let stage = 'start';
+  let authenticatedUserId: string | null = null;
   let pendingTripId: string | null = null;
   let admin: ReturnType<typeof createClient> | null = null;
+
+  console.info('[request-trip] Request started.', {
+    diagnosticId,
+    method: req.method,
+    hasAuthorizationHeader: Boolean(req.headers.get('Authorization')),
+  });
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -110,13 +120,24 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authorization } },
       auth: { persistSession: false, autoRefreshToken: false },
     });
+    stage = 'authenticate-user';
     const { data: { user }, error: authError } = await userClient.auth.getUser();
-    if (authError || !user) return jsonResponse({ error: 'Invalid or expired session.' }, 401);
+    if (authError || !user) {
+      console.warn('[request-trip] Authentication failed.', {
+        diagnosticId,
+        stage,
+        error: authError?.message ?? null,
+      });
+      return jsonResponse({ error: 'Invalid or expired session.' }, 401);
+    }
+    authenticatedUserId = user.id;
+    console.info('[request-trip] User authenticated.', { diagnosticId, userId: user.id });
 
     admin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
+    stage = 'parse-request';
     const body = await req.json();
     const {
       from, to, cargo, cargoPhoto, firstName, phone,
@@ -141,6 +162,7 @@ Deno.serve(async (req) => {
     }
 
     // The customer and default card are always taken from the authenticated profile.
+    stage = 'load-customer-profile';
     const { data: customer, error: customerError } = await admin
       .from('customers')
       .select('customer_id, stripe_customer_id, stripe_payment_method_id, payment')
@@ -155,20 +177,41 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Customer profile not found. Please try again.' }, 403);
     }
     if (!customer.stripe_customer_id || !customer.stripe_payment_method_id) {
+      console.warn('[request-trip] Customer payment setup is incomplete.', {
+        diagnosticId,
+        userId: user.id,
+        hasStripeCustomerId: Boolean(customer.stripe_customer_id),
+        hasStripePaymentMethodId: Boolean(customer.stripe_payment_method_id),
+      });
       return jsonResponse({ error: 'Please save a payment card before requesting a trip.' }, 409);
     }
+    console.info('[request-trip] Customer and saved payment method found.', {
+      diagnosticId,
+      userId: user.id,
+      hasStripeCustomerId: Boolean(customer.stripe_customer_id),
+      hasStripePaymentMethodId: Boolean(customer.stripe_payment_method_id),
+    });
 
+    stage = 'calculate-route';
     const coordinates = `${fromLongitude},${fromLatitude};${toLongitude},${toLatitude}`;
     const mapboxUrl =
       `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinates}` +
       `?overview=false&access_token=${encodeURIComponent(mapboxToken)}`;
+    console.info('[request-trip] Calling Mapbox directions API.', { diagnosticId });
     const routeResponse = await fetch(mapboxUrl);
 
     if (!routeResponse.ok) {
-      console.error('Mapbox route request failed:', routeResponse.status);
+      console.error('[request-trip] Mapbox route request failed.', {
+        diagnosticId,
+        status: routeResponse.status,
+      });
       return jsonResponse({ error: 'Could not calculate the driving route.' }, 502);
     }
 
+    console.info('[request-trip] Mapbox directions response received.', {
+      diagnosticId,
+      status: routeResponse.status,
+    });
     const routeData = await routeResponse.json();
     const route = routeData.routes?.[0];
     if (!route || typeof route.distance !== 'number' || !Number.isFinite(route.distance)) {
@@ -179,6 +222,7 @@ Deno.serve(async (req) => {
     const fare = calculateFare(miles);
     const amountMinor = Math.round(fare * 100);
 
+    stage = 'load-pricing-settings';
     const { data: setting, error: settingError } = await admin
       .from('payment_settings')
       .select('setting_value')
@@ -201,6 +245,14 @@ Deno.serve(async (req) => {
     const requestedAt = new Date().toISOString();
 
     // A pending trip is deliberately not discoverable by drivers.
+    stage = 'insert-payment-pending-trip';
+    console.info('[request-trip] Inserting Payment Pending trip.', {
+      diagnosticId,
+      userId: user.id,
+      distanceMiles: Number(miles.toFixed(2)),
+      fare,
+      payout,
+    });
     const { data: pendingTrip, error: insertError } = await admin
       .from('trips')
       .insert({
@@ -239,9 +291,19 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Could not create the trip.' }, 500);
     }
     pendingTripId = pendingTrip.trip_id;
+    console.info('[request-trip] Payment Pending trip inserted.', {
+      diagnosticId,
+      tripId: pendingTripId,
+    });
 
     let paymentIntent: Record<string, unknown>;
     try {
+      stage = 'authorize-card-with-stripe';
+      console.info('[request-trip] Calling Stripe to authorize saved card.', {
+        diagnosticId,
+        tripId: pendingTrip.trip_id,
+        amountMinor,
+      });
       paymentIntent = await createManualCapturePaymentIntent({
         secret: stripeSecretKey,
         customerId: customer.stripe_customer_id,
@@ -252,6 +314,13 @@ Deno.serve(async (req) => {
     } catch (error) {
       const requiresAction = error instanceof Error &&
         error.message === 'CARD_AUTHENTICATION_REQUIRED';
+      console.error('[request-trip] Stripe authorization threw an error.', {
+        diagnosticId,
+        tripId: pendingTrip.trip_id,
+        stage,
+        error: error instanceof Error ? error.message : String(error),
+        requiresAction,
+      });
       await admin.from('trips').update({
         status: 'Aborted',
         payment_status: requiresAction ? 'requires_action' : 'failed',
@@ -265,8 +334,22 @@ Deno.serve(async (req) => {
       }, 402);
     }
 
+    console.info('[request-trip] Stripe authorization response received.', {
+      diagnosticId,
+      tripId: pendingTrip.trip_id,
+      paymentIntentId: typeof paymentIntent.id === 'string' ? paymentIntent.id : null,
+      paymentIntentStatus: paymentIntent.status ?? null,
+    });
+
     if (paymentIntent.status !== 'requires_capture' || typeof paymentIntent.id !== 'string') {
       const requiresAction = paymentIntent.status === 'requires_action';
+      console.error('[request-trip] Stripe authorization did not reach requires_capture.', {
+        diagnosticId,
+        tripId: pendingTrip.trip_id,
+        paymentIntentId: typeof paymentIntent.id === 'string' ? paymentIntent.id : null,
+        paymentIntentStatus: paymentIntent.status ?? null,
+        requiresAction,
+      });
       await admin.from('trips').update({
         status: 'Aborted',
         payment_status: requiresAction ? 'requires_action' : 'failed',
@@ -281,7 +364,13 @@ Deno.serve(async (req) => {
       }, 402);
     }
 
+    stage = 'publish-requested-trip';
     const authorizedAt = new Date().toISOString();
+    console.info('[request-trip] Stripe authorization succeeded; publishing Requested trip.', {
+      diagnosticId,
+      tripId: pendingTrip.trip_id,
+      paymentIntentId: paymentIntent.id,
+    });
     const { data: trip, error: updateError } = await admin
       .from('trips')
       .update({
@@ -314,12 +403,24 @@ Deno.serve(async (req) => {
       }, 500);
     }
 
+    console.info('[request-trip] Trip published successfully.', {
+      diagnosticId,
+      userId: authenticatedUserId,
+      tripId: trip.trip_id,
+      status: trip.status,
+      paymentStatus: 'authorized',
+      durationMs: Date.now() - startedAt,
+    });
     return jsonResponse({ trip, driverPayoutPercent }, 201);
   } catch (error) {
-    console.error(
-      'Unexpected request-trip error:',
-      error instanceof Error ? error.message : error,
-    );
+    console.error('[request-trip] Unexpected request error.', {
+      diagnosticId,
+      userId: authenticatedUserId,
+      tripId: pendingTripId,
+      stage,
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : String(error),
+    });
 
     if (admin && pendingTripId) {
       await admin.from('trips').update({
@@ -329,7 +430,12 @@ Deno.serve(async (req) => {
     }
 
     return jsonResponse(
-      { error: 'An unexpected error occurred while requesting the trip.' },
+      {
+        error: 'An unexpected error occurred while requesting the trip.',
+        diagnosticId,
+        stage,
+        tripId: pendingTripId,
+      },
       500,
     );
   }
