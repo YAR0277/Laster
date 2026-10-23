@@ -446,8 +446,16 @@ export default function RenterScreen() {
   const completeTrip = async () => {
     if (!currentTripID) return;
 
+    console.info('[Laster diagnostics][edge-function] Calling complete-trip.', {
+      tripID: currentTripID,
+    });
     const { data, error } = await supabase.functions.invoke('complete-trip', {
       body: { tripID: currentTripID },
+    });
+    console.info('[Laster diagnostics][edge-function] complete-trip returned.', {
+      tripID: currentTripID,
+      errorMessage: error?.message ?? null,
+      response: data ? { error: data.error ?? null, status: data.status ?? null } : null,
     });
 
     if (error || data?.error) {
