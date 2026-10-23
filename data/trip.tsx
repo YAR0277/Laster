@@ -67,8 +67,21 @@ export function TripProvider({ children }: { children: ReactNode }) {
 
   const refreshTrips = useCallback(async () => {
     if (authLoading || driverLoading) {
+      console.info('[Laster diagnostics][trips] Refresh skipped while loading.', {
+        authLoading,
+        driverLoading,
+      });
       return;
     }
+
+    console.info('[Laster diagnostics][trips] Refresh started.', {
+      authenticated: Boolean(supabaseAuthUser),
+      userId: supabaseAuthUser?.id ?? null,
+      hasDriverProfile: Boolean(driver),
+      driverId: driver?.driverID ?? null,
+      hasCustomerProfile: Boolean(customer),
+      customerId: customer?.customerID ?? null,
+    });
 
     let query = supabase
       .from('trips')
@@ -77,10 +90,20 @@ export function TripProvider({ children }: { children: ReactNode }) {
 
     if (driver) {
       // Drivers see available Requested trips and their own trips.
+      console.info('[Laster diagnostics][trips] Using DRIVER query.', {
+        driverId: driver.driverID,
+        filter: 'status=Requested OR driver_id=current driver',
+      });
       query = query.or(
         `status.eq.Requested,driver_id.eq.${driver.driverID}`
       );
     } else {
+      console.warn('[Laster diagnostics][trips] No driver profile loaded; using CUSTOMER/GUEST query instead.', {
+        authenticated: Boolean(supabaseAuthUser),
+        userId: supabaseAuthUser?.id ?? null,
+        hasCustomerProfile: Boolean(customer),
+        customerId: customer?.customerID ?? null,
+      });
       let customerID = customer?.customerID ?? null;
 
       // Guest customer
@@ -91,19 +114,39 @@ export function TripProvider({ children }: { children: ReactNode }) {
       }
 
       if (!customerID) {
+        console.warn('[Laster diagnostics][trips] No customer/guest ID; clearing local trip list.');
         setTrips([]);
         return;
       }
 
+      console.info('[Laster diagnostics][trips] Using CUSTOMER/GUEST query.', { customerId: customerID });
       query = query.eq('customer_id', customerID);
     }
 
     const { data, error } = await query;
 
     if (error) {
-      console.error('Trip load error:', error.message);
+      console.error('[Laster diagnostics][trips] Supabase trip query FAILED.', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        queryRole: driver ? 'driver' : 'customer/guest',
+        driverId: driver?.driverID ?? null,
+        customerId: customer?.customerID ?? null,
+      });
       return;
     }
+
+    console.info('[Laster diagnostics][trips] Supabase trip query succeeded.', {
+      rowCount: data?.length ?? 0,
+      rows: (data ?? []).map((trip) => ({
+        tripId: trip.trip_id,
+        status: trip.status,
+        paymentStatus: trip.payment_status,
+        driverId: trip.driver_id,
+      })),
+    });
 
     setTrips(
       data.map((trip) => ({
