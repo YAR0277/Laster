@@ -343,14 +343,6 @@ export default function RenterScreen() {
       cargoPhotoUrl = data.publicUrl;
     }
 
-    const requestStartedAt = Date.now();
-    console.info('[Laster diagnostics][edge-function] Calling request-trip.', {
-      customerId: supabaseAuthUser.id,
-      hasFromCoordinates: Boolean(fromLocation),
-      hasToCoordinates: Boolean(toLocation),
-      hasCargoPhoto: Boolean(cargoPhotoUrl),
-    });
-
     const { data: result, error } = await supabase.functions.invoke(
       'request-trip',
       {
@@ -369,23 +361,6 @@ export default function RenterScreen() {
         },
       },
     );
-
-    console.info('[Laster diagnostics][edge-function] request-trip returned.', {
-      durationMs: Date.now() - requestStartedAt,
-      hasData: Boolean(result),
-      errorMessage: error?.message ?? null,
-      errorName: error?.name ?? null,
-      response: result
-        ? {
-            error: result.error ?? null,
-            code: result.code ?? null,
-            tripId: result.trip?.trip_id ?? result.tripId ?? null,
-            status: result.trip?.status ?? null,
-            paymentStatus: result.trip?.payment_status ?? null,
-            hasPaymentIntentId: Boolean(result.trip?.stripe_payment_intent_id),
-          }
-        : null,
-    });
 
     if (error || !result?.trip) {
       Alert.alert(
@@ -446,16 +421,8 @@ export default function RenterScreen() {
   const completeTrip = async () => {
     if (!currentTripID) return;
 
-    console.info('[Laster diagnostics][edge-function] Calling complete-trip.', {
-      tripID: currentTripID,
-    });
     const { data, error } = await supabase.functions.invoke('complete-trip', {
       body: { tripID: currentTripID },
-    });
-    console.info('[Laster diagnostics][edge-function] complete-trip returned.', {
-      tripID: currentTripID,
-      errorMessage: error?.message ?? null,
-      response: data ? { error: data.error ?? null, status: data.status ?? null } : null,
     });
 
     if (error || data?.error) {
@@ -477,21 +444,8 @@ export default function RenterScreen() {
   const abortTrip = async () => {
     if (!currentTripID || currentTrip?.status !== 'Requested') return;
 
-    console.info('[Laster diagnostics][edge-function] Calling abort-trip.', {
-      tripID: currentTripID,
-    });
     const { data, error } = await supabase.functions.invoke('abort-trip', {
       body: { tripID: currentTripID },
-    });
-    console.info('[Laster diagnostics][edge-function] abort-trip returned.', {
-      tripID: currentTripID,
-      errorMessage: error?.message ?? null,
-      response: data ? {
-        error: data.error ?? null,
-        status: data.status ?? null,
-        paymentStatus: data.paymentStatus ?? null,
-        paymentReleasePending: data.paymentReleasePending ?? null,
-      } : null,
     });
 
     if (error || data?.error) {
