@@ -117,6 +117,10 @@ export const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  paymentButton: {
+    marginTop: 16,
+  },
+
   secondaryButton: {
     minHeight: 50,
     borderRadius: 10,

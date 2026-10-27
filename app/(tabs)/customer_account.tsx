@@ -490,6 +490,20 @@ export default function CustomerAccountScreen() {
         </View>
       )}
 
+      {/* Update Account */}
+      {hasAccount && (
+        <View style={accountStyles.actions}>
+          <Pressable
+            style={accountStyles.primaryButton}
+            onPress={updateAccount}
+          >
+            <Text style={accountStyles.buttonText}>
+              Update Account
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
       {/* Payment */}
       {(hasAccount || accountMode === 'open') && (
         <View style={accountStyles.section}>
@@ -513,7 +527,7 @@ export default function CustomerAccountScreen() {
           )}
           {hasAccount && (
             <Pressable
-              style={accountStyles.primaryButton}
+              style={[accountStyles.primaryButton, accountStyles.paymentButton]}
               onPress={setupCustomerCard}
               disabled={paymentLoading}
             >
@@ -621,15 +635,6 @@ export default function CustomerAccountScreen() {
               </Text>
             </Pressable>
                       
-            <Pressable
-              style={accountStyles.primaryButton}
-              onPress={updateAccount}
-            >
-              <Text style={accountStyles.buttonText}>
-                Update Account
-              </Text>
-            </Pressable>
-
             <Pressable
               style={accountStyles.deleteButton}
               onPress={deleteAccount}
