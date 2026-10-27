@@ -1,3 +1,4 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 
@@ -10,15 +11,15 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
 
   return (
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarButton: HapticTab,
-          tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-          tabBarInactiveTintColor:
-            colorScheme === 'dark' ? '#B0B0B0' : '#666666',
-        }}>
-
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarButton: HapticTab,
+        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarInactiveTintColor:
+          colorScheme === 'dark' ? '#B0B0B0' : '#666666',
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
@@ -32,13 +33,26 @@ export default function TabLayout() {
       <Tabs.Screen
         name="customer"
         options={{
-          title: 'Customer',
+          title: 'Rent',
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons
+              name="car-pickup"
+              size={28}
+              color={color}
+            />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="customer_account"
+        options={{
+          title: 'Account',
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="person.fill" color={color} />
           ),
         }}
       />
-
-      </Tabs>
+    </Tabs>
   );
 }

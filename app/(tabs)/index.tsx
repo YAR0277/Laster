@@ -2,6 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+
 import { styles as commonStyles } from '../../components/common';
 import { styles as indexStyles } from '../../components/index';
 import { supabase } from '../../lib/supabase';
@@ -10,8 +11,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const [menuVisible, setMenuVisible] = useState(false);
   const [averageFare, setAverageFare] = useState<number | null>(null);
-
   const [pickupsAvailable, setPickupsAvailable] = useState<number | null>(null);
+  const [averageDistance, setAverageDistance] = useState<number | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -26,10 +27,7 @@ export default function HomeScreen() {
         if (cancelled) return;
 
         if (error) {
-          console.error(
-            'Load available pickups error:',
-            error.message
-          );
+          console.error('Load available pickups error:', error.message);
           return;
         }
 
@@ -86,9 +84,6 @@ export default function HomeScreen() {
     };
   }, []);
 
-  const [averageDistance, setAverageDistance] =
-    useState<number | null>(null);
-
   useEffect(() => {
     let cancelled = false;
 
@@ -99,10 +94,7 @@ export default function HomeScreen() {
         .not('distance', 'is', null);
 
       if (error) {
-        console.error(
-          'Average distance load error:',
-          error.message
-        );
+        console.error('Average distance load error:', error.message);
         return;
       }
 
@@ -110,8 +102,7 @@ export default function HomeScreen() {
         .map((trip) => trip.distance)
         .filter(
           (distance): distance is number =>
-            typeof distance === 'number' &&
-            Number.isFinite(distance)
+            typeof distance === 'number' && Number.isFinite(distance)
         );
 
       if (!cancelled) {
@@ -130,18 +121,20 @@ export default function HomeScreen() {
       cancelled = true;
     };
   }, []);
-  return (
-  <ScrollView
-    style={commonStyles.container}
-    contentContainerStyle={commonStyles.contentContainer}
-  >
 
+  const closeMenu = () => setMenuVisible(false);
+
+  return (
+    <ScrollView
+      style={commonStyles.container}
+      contentContainerStyle={commonStyles.contentContainer}
+    >
       {/* Header */}
       <View style={indexStyles.header}>
-        <Pressable 
+        <Pressable
           style={indexStyles.headerSide}
           onPress={() => setMenuVisible(true)}
-          >
+        >
           <MaterialCommunityIcons
             name="menu"
             size={28}
@@ -154,7 +147,6 @@ export default function HomeScreen() {
             source={require('../../assets/images/laster-icon-transparent.png')}
             style={indexStyles.headerLogo}
           />
-
           <Text style={indexStyles.headerTitle}>Laster</Text>
         </View>
 
@@ -170,49 +162,31 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      {/* Quick Actions */}
+      {/* Main actions */}
       <View style={indexStyles.quickCard}>
-        <Text style={indexStyles.quickTitle}>Quick Actions</Text>
         <Text style={indexStyles.quickSubtitle}>Get started with Laster</Text>
 
         <View style={indexStyles.quickSeparator} />
 
         <View style={indexStyles.quickButtons}>
-
           {/* Rent a Pickup */}
-            <Pressable
-              style={[indexStyles.quickButton, indexStyles.rentPickupButton]}
-              onPress={() => router.push('/customer')}
-            >
-            <MaterialCommunityIcons
-              name="account-outline"
-              size={28}
-              color="#FFFFFF"
-            />
-
-            <Text style={indexStyles.quickButtonText}>Rent a Pickup</Text>
-            <Text style={indexStyles.quickButtonSubtitle}>Need a pickup truck and driver?</Text>
-
-            <MaterialCommunityIcons
-              name="arrow-right"
-              size={26}
-              color="#FFFFFF"
-            />
-          </Pressable>
-
-          {/* Drive with Laster */}
-            <Pressable
-              style={[indexStyles.quickButton, indexStyles.driveWithLasterButton]}
-              onPress={() => router.push('/driver')}
-            >
+          <Pressable
+            style={[
+              indexStyles.quickButton,
+              indexStyles.rentPickupButton,
+            ]}
+            onPress={() => router.push('/customer')}
+          >
             <MaterialCommunityIcons
               name="car-pickup"
               size={28}
               color="#FFFFFF"
             />
 
-            <Text style={indexStyles.quickButtonText}>Drive with Laster</Text>
-            <Text style={indexStyles.quickButtonSubtitle}>Earn money driving your pickup.</Text>
+            <Text style={indexStyles.quickButtonText}>Rent a Pickup</Text>
+            <Text style={indexStyles.quickButtonSubtitle}>
+              Need a pickup truck and driver?
+            </Text>
 
             <MaterialCommunityIcons
               name="arrow-right"
@@ -221,13 +195,36 @@ export default function HomeScreen() {
             />
           </Pressable>
 
+          {/* Open an Account */}
+          <Pressable
+            style={[
+              indexStyles.quickButton,
+              indexStyles.driveWithLasterButton,
+            ]}
+            onPress={() => router.push('/customer_account')}
+          >
+            <MaterialCommunityIcons
+              name="account-outline"
+              size={28}
+              color="#FFFFFF"
+            />
+
+            <Text style={indexStyles.quickButtonText}>Open an Account</Text>
+            <Text style={indexStyles.quickButtonSubtitle}>
+              Manage your Laster account.
+            </Text>
+
+            <MaterialCommunityIcons
+              name="arrow-right"
+              size={26}
+              color="#FFFFFF"
+            />
+          </Pressable>
         </View>
       </View>
 
       {/* Statistics */}
       <View style={indexStyles.homeCard}>
-
-        {/* Pickups available */}
         <View style={indexStyles.statRow}>
           <View style={[indexStyles.statIconCircle, indexStyles.customerIcon]}>
             <MaterialCommunityIcons
@@ -236,6 +233,7 @@ export default function HomeScreen() {
               color="#B8BCC4"
             />
           </View>
+
           <View style={indexStyles.statContent}>
             <Text style={indexStyles.statLabel}>PICKUPS AVAILABLE</Text>
             <Text style={indexStyles.statValue}>
@@ -246,7 +244,6 @@ export default function HomeScreen() {
 
         <View style={indexStyles.statSeparator} />
 
-        {/* My Average Fare */}
         <View style={indexStyles.statRow}>
           <View style={[indexStyles.statIconCircle, indexStyles.customerIcon]}>
             <MaterialCommunityIcons
@@ -255,19 +252,17 @@ export default function HomeScreen() {
               color="#B8BCC4"
             />
           </View>
+
           <View style={indexStyles.statContent}>
             <Text style={indexStyles.statLabel}>MY AVERAGE FARE</Text>
             <Text style={indexStyles.statValue}>
-              {averageFare !== null
-                ? `$${averageFare.toFixed(2)}`
-                : '—'}
+              {averageFare !== null ? `$${averageFare.toFixed(2)}` : '—'}
             </Text>
           </View>
         </View>
 
         <View style={indexStyles.statSeparator} />
 
-        {/* My Average Distance */}
         <View style={indexStyles.statRow}>
           <View style={[indexStyles.statIconCircle, indexStyles.customerIcon]}>
             <MaterialCommunityIcons
@@ -276,6 +271,7 @@ export default function HomeScreen() {
               color="#B8BCC4"
             />
           </View>
+
           <View style={indexStyles.statContent}>
             <Text style={indexStyles.statLabel}>MY AVERAGE DISTANCE</Text>
             <Text style={indexStyles.statValue}>
@@ -285,55 +281,72 @@ export default function HomeScreen() {
             </Text>
           </View>
         </View>
-
       </View>
 
+      {/* Navigation menu */}
       <Modal
         visible={menuVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setMenuVisible(false)}
+        onRequestClose={closeMenu}
       >
         <Pressable
           style={indexStyles.menuOverlay}
-          onPress={() => setMenuVisible(false)}
+          onPress={closeMenu}
         >
           <Pressable
             style={indexStyles.menu}
             onPress={(event) => event.stopPropagation()}
           >
-            <Text style={indexStyles.menuTitle}>Menu</Text>
+            <Text style={indexStyles.menuTitle}>Laster</Text>
 
             <Pressable
               style={indexStyles.menuItem}
               onPress={() => {
-                setMenuVisible(false);
+                closeMenu();
+                router.push('/customer');
+              }}
+            >
+              <MaterialCommunityIcons
+                name="car-pickup"
+                size={22}
+                color="#B8BCC4"
+              />
+              <Text style={indexStyles.menuItemText}>Rent</Text>
+            </Pressable>
+
+            <Pressable
+              style={indexStyles.menuItem}
+              onPress={() => {
+                closeMenu();
                 router.push('/customer_account');
               }}
             >
-              <Text style={indexStyles.menuItemText}>Customer Account</Text>
+              <MaterialCommunityIcons
+                name="account-outline"
+                size={22}
+                color="#B8BCC4"
+              />
+              <Text style={indexStyles.menuItemText}>Account</Text>
             </Pressable>
 
             <Pressable
               style={indexStyles.menuItem}
               onPress={() => {
-                setMenuVisible(false);
+                closeMenu();
                 router.push('/settings');
               }}
             >
+              <MaterialCommunityIcons
+                name="cog-outline"
+                size={22}
+                color="#B8BCC4"
+              />
               <Text style={indexStyles.menuItemText}>Settings</Text>
-            </Pressable>
-
-            <Pressable
-              style={indexStyles.menuCancel}
-              onPress={() => setMenuVisible(false)}
-            >
-              <Text style={indexStyles.menuCancelText}>Cancel</Text>
             </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
-
     </ScrollView>
   );
 }

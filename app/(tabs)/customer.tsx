@@ -528,13 +528,12 @@ export default function RenterScreen() {
         <View style={customerStyles.pageHeaderContent}>
           <View style={customerStyles.pageHeaderText}>
             <Text style={customerStyles.pageSubtitle}>
-              Need a pickup truck?{"\n"}
-              Login or{' '}
+              To request a trip{' '}
               <Text
                 style={customerStyles.accountLink}
-                onPress={() => router.push('/customer_account?mode=default')}
+                onPress={() => router.push('/(tabs)/customer_account?mode=default')}
               >
-                open an account
+                Log in
               </Text>
             </Text>
           </View>

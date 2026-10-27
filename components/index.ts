@@ -129,11 +129,11 @@ export const styles = StyleSheet.create({
   },
 
   rentPickupButton: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: '#414752',
   },
 
   driveWithLasterButton: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#414752',
   },
 
   quickButtonText: {
@@ -180,10 +180,11 @@ export const styles = StyleSheet.create({
   },
 
   menuItem: {
-    minHeight: 48,
-    justifyContent: 'center',
-    paddingHorizontal: 14,
-    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+    gap: 12,    
   },
 
   menuItemText: {

@@ -32,10 +32,6 @@ export default function RootLayout() {
                 options={{ presentation: 'modal', title: 'Modal' }}
               />
               <Stack.Screen
-                name="customer_account"
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
                 name="settings"
                 options={{ headerShown: false }}
               />

@@ -1,11 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useStripe } from '@stripe/stripe-react-native';
 import {
   useFocusEffect,
   useLocalSearchParams,
   useRouter,
 } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { useStripe } from '@stripe/stripe-react-native';
 import {
   Alert,
   Pressable,
@@ -14,12 +14,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { styles as commonStyles } from '../components/common';
-import { styles as accountStyles } from '../components/customer_account';
-import { useAuth } from '../data/auth';
-import { useCustomer } from '../data/customer';
-import { useTrip } from '../data/trip';
-import { supabase } from '../lib/supabase';
+import { styles as commonStyles } from '../../components/common';
+import { styles as accountStyles } from '../../components/customer_account';
+import { useAuth } from '../../data/auth';
+import { useCustomer } from '../../data/customer';
+import { useTrip } from '../../data/trip';
+import { supabase } from '../../lib/supabase';
 
 export default function CustomerAccountScreen() {
   const { customer, setCustomer } = useCustomer();
