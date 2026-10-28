@@ -1,5 +1,5 @@
 /**
- * Laster Payment Service (LPS)
+ * Payment Provider (LPS)
  *
  * Provider-independent contract for customer payments,
  * driver payouts, and payment-provider events.
@@ -113,7 +113,7 @@ export type ProviderEventResult = {
   duplicate: boolean;
 };
 
-export interface LasterPaymentService {
+export interface PaymentProvider {
   validateCustomerPaymentMethod(input: {
     customerId: string;
     paymentMethodId: string;

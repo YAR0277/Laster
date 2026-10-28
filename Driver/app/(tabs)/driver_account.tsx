@@ -1,0 +1,1073 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  Alert,
+  Image,
+  Linking,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View
+} from 'react-native';
+
+import { File } from 'expo-file-system';
+import * as ImagePicker from 'expo-image-picker';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
+import { styles as commonStyles } from '../../components/common';
+import { styles as accountStyles } from '../../components/driver_account';
+import { useAuth } from '../../data/auth';
+import { useDriver } from '../../data/driver';
+import { useTrip } from '../../data/trip';
+import { supabase } from '../../lib/supabase';
+
+export default function DriverAccountScreen() {
+  const router = useRouter();
+  const { driver, setDriver } = useDriver();
+  const { trips, refreshTrips } = useTrip();
+  const { user: supabaseAuthUser } = useAuth();
+  const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [make, setMake] = useState('');
+  const [model, setModel] = useState('');
+  const [year, setYear] = useState('');
+  const [vinNumber, setVinNumber] = useState('');
+  const [truckPhoto, setTruckPhoto] = useState<string | null>(
+    driver?.truckPhoto || null
+  );
+  const [licenseNumber, setLicenseNumber] = useState('');
+  const [licenseState, setLicenseState] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [insurancePolicy, setInsurancePolicy] = useState('');
+  const [insuranceCompany, setInsuranceCompany] = useState('');
+  const [insuranceExpirationDate, setInsuranceExpirationDate] = useState('');
+  const [accountMode, setAccountMode] =
+    useState<'login' | 'open'>('login');
+  const hasAccount = supabaseAuthUser !== null && driver !== null;
+  const [payoutLoading, setPayoutLoading] = useState(false);
+  const [payoutStatus, setPayoutStatus] = useState<
+    'checking' | 'required' | 'ready' | 'restricted' | 'error'
+  >('checking');
+
+  const formatTripDate = (dateString: string) => {
+    const date = new Date(dateString);
+
+    return date.toLocaleString([], {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+  };
+
+  const pickTruckPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setTruckPhoto(result.assets[0].uri);
+    }
+  };
+
+  const driverTrips = trips
+    .filter(
+      (trip) =>
+        driver !== null &&
+        trip.driverID === driver.driverID &&
+        (trip.status === 'Completed' || trip.status === 'Aborted')
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.requestedAt).getTime() -
+        new Date(a.requestedAt).getTime()
+    );
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshTrips();
+    }, [refreshTrips])
+  );
+
+  useEffect(() => {
+    if (driver) {
+      setFirstName(driver.firstName);
+      setLastName(driver.lastName);
+      setPhone(driver.phone);
+      setEmail(driver.email);
+      setMake(driver.make);
+      setModel(driver.model);
+      setYear(driver.year);
+      setVinNumber(driver.vinNumber);
+      setTruckPhoto(driver.truckPhoto);
+      setLicenseNumber(driver.licenseNumber);
+      setLicenseState(driver.licenseState);
+      setDateOfBirth(driver.dateOfBirth);
+      setInsurancePolicy(driver.insurancePolicy);
+      setInsuranceCompany(driver.insuranceCompany);
+      setInsuranceExpirationDate(driver.insuranceExpirationDate);
+    } else {
+      setFirstName('');
+      setLastName('');
+      setPhone('');
+      setEmail('');
+      setMake('');
+      setModel('');
+      setYear('');
+      setVinNumber('');
+      setTruckPhoto('');
+      setLicenseNumber('');
+      setLicenseState('');
+      setDateOfBirth('');
+      setInsurancePolicy('');
+      setInsuranceCompany('');
+      setInsuranceExpirationDate('');
+    }
+  }, [driver]);
+
+  const login = async () => {
+    if (!email || !password) {
+      Alert.alert(
+        'Missing Information',
+        'Please enter your email address and password.'
+      );
+      return;
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      Alert.alert(
+        'Login Error',
+        error.message
+      );
+      return;
+    }
+
+    setPassword('');
+
+    Alert.alert(
+      'Login Successful',
+      'Welcome back.'
+    );
+
+    router.replace('/(tabs)/driver');
+  };
+
+  const uploadTruckPhoto = async (): Promise<string> => {
+    if (!truckPhoto) {
+      return '';
+    }
+
+    if (!truckPhoto.startsWith('file://')) {
+      return truckPhoto;
+    }
+
+    const file = new File(truckPhoto);
+    const arrayBuffer = await file.arrayBuffer();
+
+    const fileName = `${uuidv4()}.jpg`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('truck-photos')
+      .upload(fileName, arrayBuffer, {
+        contentType: 'image/jpeg',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data } = supabase.storage
+      .from('truck-photos')
+      .getPublicUrl(fileName);
+
+    return data.publicUrl;
+  };
+
+  const deleteTruckPhoto = async (photoUrl: string) => {
+    if (!photoUrl) {
+      return;
+    }
+
+    const fileName = photoUrl.split('/').pop();
+
+    if (!fileName) {
+      return;
+    }
+
+    const { error } = await supabase.storage
+      .from('truck-photos')
+      .remove([fileName]);
+
+    if (error) {
+      throw error;
+    }
+  };
+
+  const openAccount = async () => {
+    if (!firstName || !lastName || !phone || !email || !password) {
+      Alert.alert(
+        'Missing Information',
+        'Please enter your first name, last name, phone number, email, and password.'
+      );
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert(
+        'Invalid Password',
+        'Your password must be at least 6 characters.'
+      );
+      return;
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) {
+      Alert.alert('Account Error', error.message);
+      return;
+    }
+
+    if (!data.user) {
+      Alert.alert('Account Error', 'The account could not be created.');
+      return;
+    }
+
+    let truckPhotoUrl = '';
+    try {
+      truckPhotoUrl = await uploadTruckPhoto();
+    } catch (error) {
+      Alert.alert(
+        'Photo Upload Error',
+        error instanceof Error
+          ? error.message
+          : 'The truck photo could not be uploaded.'
+      );
+      return;
+    }
+
+    const { error: driverError } = await supabase
+      .from('drivers')
+      .insert({
+        driver_id: data.user.id,
+        first_name: firstName,
+        last_name: lastName,
+        phone,
+        email,
+        make,
+        model,
+        year,
+        vin_number: vinNumber,
+        truck_photo: truckPhotoUrl,
+        license_number: licenseNumber,
+        license_state: licenseState,
+        date_of_birth: dateOfBirth,
+        insurance_policy: insurancePolicy,
+        insurance_company: insuranceCompany,
+        insurance_expiration_date: insuranceExpirationDate,
+        rating: null,
+        number_of_ratings: 0,
+        number_of_trips: 0,
+      });
+
+    if (driverError) {
+      Alert.alert('Account Error', driverError.message);
+      return;
+    }
+
+    if (!data.session) {
+      const { error: signInError } =
+        await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+      if (signInError) {
+        Alert.alert(
+          'Account Created',
+          'Your account was created, but you will need to log in.'
+        );
+        return;
+      }
+    }
+
+    setDriver({
+      driverID: data.user.id,
+      firstName,
+      lastName,
+      phone,
+      email,
+      make,
+      model,
+      year,
+      vinNumber,
+      truckPhoto: truckPhotoUrl,
+      licenseNumber,
+      licenseState,
+      dateOfBirth,
+      insurancePolicy,
+      insuranceCompany,
+      insuranceExpirationDate,
+      rating: null,
+      numberOfRatings: 0,
+      numberOfTrips: 0,
+    });
+
+    setPassword('');
+
+    Alert.alert(
+      'Account Opened',
+      'You have opened a Laster driver account and you are now logged in.'
+    );
+  };
+
+  const updateAccount = async () => {
+    if (!driver) {
+      return;
+    }
+
+    let truckPhotoUrl = '';
+    try {
+      truckPhotoUrl = await uploadTruckPhoto();
+    } catch (error) {
+      Alert.alert(
+        'Photo Upload Error',
+        error instanceof Error
+          ? error.message
+          : 'The truck photo could not be uploaded.'
+      );
+      return;
+    }
+
+    const { error } = await supabase
+      .from('drivers')
+      .update({
+        first_name: firstName,
+        last_name: lastName,
+        phone,
+        email,
+        make,
+        model,
+        vin_number: vinNumber,
+        year,
+        truck_photo: truckPhotoUrl,
+        license_number: licenseNumber,
+        license_state: licenseState,
+        date_of_birth: dateOfBirth,
+        insurance_policy: insurancePolicy,
+        insurance_company: insuranceCompany,
+        insurance_expiration_date: insuranceExpirationDate,
+      })
+      .eq('driver_id', driver.driverID);
+
+    if (error) {
+      Alert.alert(
+        'Account Error',
+        `The account could not be updated.\n\n${error.message}`
+      );
+      return;
+    }
+
+    // Delete old truck photo
+    if (
+      driver.truckPhoto &&
+      driver.truckPhoto !== truckPhotoUrl
+    ) {
+      try {
+        await deleteTruckPhoto(driver.truckPhoto);
+      } catch (error) {
+        console.error(
+          'Old truck photo could not be deleted:',
+          error
+        );
+      }
+    }
+
+    setDriver({
+      ...driver,
+      firstName,
+      lastName,
+      phone,
+      email,
+      make,
+      model,
+      vinNumber,
+      year,
+      truckPhoto: truckPhotoUrl,
+      licenseNumber,
+      licenseState,
+      dateOfBirth,
+      insurancePolicy,
+      insuranceCompany,
+      insuranceExpirationDate,
+    });
+
+    Alert.alert(
+      'Account Updated',
+      'Your driver account has been updated.'
+    );
+  };
+
+  const deleteAccount = async () => {
+    if (!driver) {
+      return;
+    }
+
+    const { data: acceptedTrip, error: acceptedTripError } =
+      await supabase
+        .from('trips')
+        .select('trip_id')
+        .eq('driver_id', driver.driverID)
+        .eq('status', 'Accepted')
+        .limit(1)
+        .maybeSingle();
+
+    if (acceptedTripError) {
+      Alert.alert(
+        'Account Error',
+        `The driver's current trip could not be checked.\n\n${acceptedTripError.message}`
+      );
+      return;
+    }
+
+    if (acceptedTrip) {
+      Alert.alert(
+        'Cannot Delete Account',
+        'You cannot delete your driver account while you have an accepted trip. Please complete or abort your current trip first.'
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your Laster driver account and associated data. This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: async () => {
+            const { data, error } = await supabase.functions.invoke(
+              'delete-driver-account'
+            );
+
+            if (error) {
+              Alert.alert(
+                'Delete Account Error',
+                error.message
+              );
+              return;
+            }
+
+            if (!data?.success) {
+              Alert.alert(
+                'Delete Account Error',
+                data?.error ?? 'The driver account could not be deleted.'
+              );
+              return;
+            }
+
+            setDriver(null);
+
+            Alert.alert(
+              'Account Deleted',
+              'Your Laster driver account has been permanently deleted.',
+              [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    router.replace('/(tabs)/driver');
+                  },
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
+  };
+
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      Alert.alert('Logout Error', error.message);
+      return;
+    }
+
+    setDriver(null);
+  };
+
+  const setUpPayouts = async () => {
+    if (payoutLoading) {
+      return;
+    }
+
+    setPayoutLoading(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'create-driver-payout-onboarding'
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data?.url || typeof data.url !== 'string') {
+        throw new Error(
+          data?.error ?? 'The payout setup link could not be created.'
+        );
+      }
+
+      const supported = await Linking.canOpenURL(data.url);
+
+      if (!supported) {
+        throw new Error('The payout setup page could not be opened.');
+      }
+
+      await Linking.openURL(data.url);
+    } catch (error) {
+      Alert.alert(
+        'Payout Setup Error',
+        error instanceof Error
+          ? error.message
+          : 'Payout setup could not be started. Please try again.'
+      );
+    } finally {
+      setPayoutLoading(false);
+    }
+  };
+  return (
+    <ScrollView
+      style={commonStyles.container}
+      contentContainerStyle={commonStyles.contentContainer}
+    >
+      {/* Page Header */}
+      <View style={accountStyles.pageHeader}>
+        <Text style={accountStyles.pageSubtitle}>
+          Manage your Driver account
+        </Text>
+      </View>
+
+      {/* Login / Open Account Toggle */}
+      {!hasAccount && (
+        <View style={accountStyles.toggleContainer}>
+          <Pressable
+            style={[
+              accountStyles.toggleButton,
+              accountMode === 'login' &&
+                accountStyles.toggleButtonSelected,
+            ]}
+            onPress={() => setAccountMode('login')}
+          >
+            <Text
+              style={[
+                accountStyles.toggleText,
+                accountMode === 'login' &&
+                  accountStyles.toggleTextSelected,
+              ]}
+            >
+              Login
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              accountStyles.toggleButton,
+              accountMode === 'open' &&
+                accountStyles.toggleButtonSelected,
+            ]}
+            onPress={() => setAccountMode('open')}
+          >
+            <Text
+              style={[
+                accountStyles.toggleText,
+                accountMode === 'open' &&
+                  accountStyles.toggleTextSelected,
+              ]}
+            >
+              Open Account
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Login */}
+      <View style={accountStyles.section}>
+        <Text style={accountStyles.fieldLabel}>Email</Text>
+        <TextInput
+          style={accountStyles.input}
+          placeholder="Enter email address"
+          placeholderTextColor="#888"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+
+        <Text style={accountStyles.fieldLabel}>Password</Text>
+        <TextInput
+          style={accountStyles.input}
+          placeholder="Enter password"
+          placeholderTextColor="#888"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoCapitalize="none"
+        />
+      </View>
+
+      {/* Contact */}
+      {(hasAccount || accountMode === 'open') && (
+        <View style={accountStyles.section}>
+          <View style={accountStyles.sectionHeading}>
+            <MaterialCommunityIcons
+              name="account-outline"
+              size={23}
+              color="#D8DCE3"
+            />
+            <Text style={accountStyles.sectionTitle}>Contact</Text>
+          </View>
+
+          <Text style={accountStyles.fieldLabel}>First Name</Text>
+          <TextInput
+            style={accountStyles.input}
+            placeholder="Enter first name"
+            placeholderTextColor="#888"
+            value={firstName}
+            onChangeText={setFirstName}
+          />
+
+          <Text style={accountStyles.fieldLabel}>Last Name</Text>
+          <TextInput
+            style={accountStyles.input}
+            placeholder="Enter last name"
+            placeholderTextColor="#888"
+            value={lastName}
+            onChangeText={setLastName}
+          />
+
+          <Text style={accountStyles.fieldLabel}>Phone</Text>
+          <TextInput
+            style={accountStyles.input}
+            placeholder="Enter phone number"
+            placeholderTextColor="#888"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+          />
+        </View>
+      )}
+
+      {/* Pickup Truck */}
+      {(hasAccount || accountMode === 'open') && (
+        <View style={accountStyles.section}>
+        <View style={accountStyles.sectionHeading}>
+          <MaterialCommunityIcons
+            name="car-pickup"
+            size={23}
+            color="#D8DCE3"
+          />
+          <Text style={accountStyles.sectionTitle}>Pickup Truck</Text>
+        </View>
+
+        <Text style={accountStyles.fieldLabel}>Make</Text>
+        <TextInput
+          style={accountStyles.input}
+          placeholder="Enter truck make"
+          placeholderTextColor="#888"
+          value={make}
+          onChangeText={setMake}
+        />
+
+        <Text style={accountStyles.fieldLabel}>Model</Text>
+        <TextInput
+          style={accountStyles.input}
+          placeholder="Enter truck model"
+          placeholderTextColor="#888"
+          value={model}
+          onChangeText={setModel}
+        />
+
+        <Text style={accountStyles.fieldLabel}>Year</Text>
+        <TextInput
+          style={accountStyles.input}
+          placeholder="Enter truck year"
+          placeholderTextColor="#888"
+          value={year}
+          onChangeText={setYear}
+          keyboardType="number-pad"
+        />
+
+        <Text style={accountStyles.fieldLabel}>VIN Number</Text>
+        <TextInput
+          style={accountStyles.input}
+          placeholder="Enter VIN"
+          placeholderTextColor="#8F96A3"
+          value={vinNumber}
+          onChangeText={setVinNumber}
+          autoCapitalize="characters"
+          maxLength={17}
+        />
+
+        <Text style={accountStyles.fieldLabel}>Truck Photo</Text>
+        <Pressable
+          style={accountStyles.photoButton}
+          onPress={pickTruckPhoto}
+        >
+          <Text style={accountStyles.photoButtonText}>
+            {truckPhoto ? 'Change Truck Photo' : 'Add Truck Photo'}
+          </Text>
+        </Pressable>
+
+        {truckPhoto && (
+          <Image
+            source={{ uri: truckPhoto }}
+            style={accountStyles.truckPhoto}
+            resizeMode="cover"
+          />
+        )}
+      </View>
+      )}
+
+      {/* Driver's License */}
+      {(hasAccount || accountMode === 'open') && (
+        <View style={accountStyles.section}>
+        <View style={accountStyles.sectionHeading}>
+          <MaterialCommunityIcons
+            name="card-account-details-outline"
+            size={23}
+            color="#D8DCE3"
+          />
+          <Text style={accountStyles.sectionTitle}>Driver's License</Text>
+        </View>
+
+
+        <Text style={accountStyles.fieldLabel}>
+          Number
+        </Text>
+
+        <TextInput
+          style={accountStyles.input}
+          placeholder="Enter license number"
+          placeholderTextColor="#888"
+          value={licenseNumber}
+          onChangeText={setLicenseNumber}
+        />
+
+        <Text style={accountStyles.fieldLabel}>
+          State
+        </Text>
+
+        <TextInput
+          style={accountStyles.input}
+          placeholder="Enter license state"
+          placeholderTextColor="#888"
+          value={licenseState}
+          onChangeText={setLicenseState}
+        />
+
+        <Text style={accountStyles.fieldLabel}>
+          Date of Birth
+        </Text>
+
+        <TextInput
+          style={accountStyles.input}
+          placeholder="MM/DD/YYYY"
+          placeholderTextColor="#888"
+          value={dateOfBirth}
+          onChangeText={setDateOfBirth}
+        />
+      </View>
+      )}
+
+      {/* Insurance */}
+      {(hasAccount || accountMode === 'open') && (
+        <View style={accountStyles.section}>
+        <View style={accountStyles.sectionHeading}>
+          <MaterialCommunityIcons
+            name="shield-check-outline"
+            size={23}
+            color="#D8DCE3"
+          />
+          <Text style={accountStyles.sectionTitle}>Insurance</Text>
+        </View>
+
+        <Text style={accountStyles.fieldLabel}>Company</Text>
+        <TextInput
+          style={accountStyles.input}
+          placeholder="Enter insurance company"
+          placeholderTextColor="#888"
+          value={insuranceCompany}
+          onChangeText={setInsuranceCompany}
+        />
+
+        <Text style={accountStyles.fieldLabel}>Policy Number</Text>
+        <TextInput
+          style={accountStyles.input}
+          placeholder="Enter policy number"
+          placeholderTextColor="#888"
+          value={insurancePolicy}
+          onChangeText={setInsurancePolicy}
+        />
+
+        <Text style={accountStyles.fieldLabel}>Expiration Date</Text>
+        <TextInput
+          style={accountStyles.input}
+          placeholder="MM/DD/YYYY"
+          placeholderTextColor="#8F96A3"
+          value={insuranceExpirationDate}
+          onChangeText={setInsuranceExpirationDate}
+          keyboardType="numbers-and-punctuation"
+          maxLength={10}
+        />
+      </View>
+      )}
+
+      {/* Update Account */}
+      {hasAccount && (
+        <View style={accountStyles.actions}>
+          <Pressable
+            style={accountStyles.primaryButton}
+            onPress={updateAccount}
+          >
+            <MaterialCommunityIcons
+              name="content-save-outline"
+              size={21}
+              color="#FFFFFF"
+            />
+            <Text style={accountStyles.buttonText}>
+              Update Account
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Payout Settings */}
+      {hasAccount && (
+        <View style={accountStyles.section}>
+          <View style={accountStyles.sectionHeading}>
+            <MaterialCommunityIcons
+              name="wallet-outline"
+              size={23}
+              color="#D8DCE3"
+            />
+            <Text style={accountStyles.sectionTitle}>
+              Payout Settings
+            </Text>
+          </View>
+
+          <Text style={accountStyles.payoutDescription}>
+            Set up your payout account with our payment provider
+            to receive payments from Laster. Your driver application
+            is not complete until you finish this setup.
+          </Text>
+
+          <Pressable
+            style={accountStyles.actionRow}
+            onPress={setUpPayouts}
+            disabled={payoutLoading}
+          >
+            <Text style={accountStyles.actionRowText}>
+              {payoutLoading ? 'Opening Payout Settings...' : 'Set Up Payouts'}
+            </Text>
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={24}
+              color="#8F96A3"
+            />
+          </Pressable>
+        </View>
+      )}
+
+      {/* Rating */}
+      {hasAccount && driver?.rating != null && (
+        <View style={accountStyles.section}>
+          {/* <Text style={accountStyles.sectionTitle}>Rating</Text> */}
+          <View style={accountStyles.sectionHeading}>
+            <MaterialCommunityIcons
+              name="star"
+              size={23}
+              color="#E7B94C"
+            />
+            <Text style={accountStyles.sectionTitle}>Rating</Text>
+          </View>
+          <Text style={accountStyles.fieldLabel}>
+            {driver.rating.toFixed(1)} / 5
+          </Text>
+        </View>
+      )}
+
+      {/* Trip History */}
+      {hasAccount && (
+        <View style={accountStyles.section}>
+          {/* <Text style={accountStyles.sectionTitle}>Trip History</Text> */}
+          <View style={accountStyles.sectionHeading}>
+            <MaterialCommunityIcons
+              name="history"
+              size={23}
+              color="#D8DCE3"
+            />
+            <Text style={accountStyles.sectionTitle}>Trip History</Text>
+          </View>
+
+          {driverTrips.length === 0 ? (
+            <Text style={accountStyles.emptyText}>
+              No trip history.
+            </Text>
+          ) : (
+            driverTrips.map((trip) => (
+              <View
+                key={trip.tripID}
+                style={accountStyles.tripRow}
+              >
+                <View>
+                  <Text style={accountStyles.tripDate}>
+                    {formatTripDate(trip.requestedAt)}
+                  </Text>
+
+                  <Text style={accountStyles.tripRoute}>
+                    Status: {trip.status}
+                  </Text>
+
+                  {trip.customerFirstName && (
+                    <Text style={accountStyles.tripRoute}>
+                      Customer: {trip.customerFirstName}
+                    </Text>
+                  )}
+
+                  <Text style={accountStyles.tripRoute}>
+                    Cargo: {trip.cargo || '...'}
+                  </Text>
+
+                  <Text style={accountStyles.tripRoute}>
+                    Distance:{' '}
+                    {trip.distance !== null
+                      ? `${trip.distance.toFixed(2)} mi`
+                      : '...'}
+                  </Text>
+
+                  <Text style={accountStyles.tripRoute}>
+                    Rating:{' '}
+                    {trip.driverRating != null
+                      ? `${trip.driverRating}/5`
+                      : 'Not rated'}
+                  </Text>
+                </View>
+
+                <Text style={accountStyles.tripFare}>
+                  {trip.payout !== null
+                    ? `$${trip.payout.toFixed(2)}`
+                    : '...'}
+                </Text>
+              </View>
+            ))
+          )}
+        </View>
+      )}
+
+      {/* Actions */}
+      <View style={accountStyles.actions}>
+      {!hasAccount ? (
+        <>
+          {accountMode === 'login' ? (
+            <Pressable
+              style={accountStyles.primaryButton}
+              onPress={login}
+            >
+              <Text style={accountStyles.buttonText}>
+                Login
+              </Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              style={accountStyles.primaryButton}
+              onPress={openAccount}
+            >
+              <Text style={accountStyles.buttonText}>
+                Open
+              </Text>
+            </Pressable>
+          )}
+        </>
+      ) : (
+          <>
+            {/* Account Actions / Login */}
+            <View style={accountStyles.actions}>
+              {!hasAccount ? (
+                accountMode === 'login' ? (
+                  <Pressable
+                    style={accountStyles.primaryButton}
+                    onPress={login}
+                  >
+                    <Text style={accountStyles.buttonText}>Login</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    style={accountStyles.primaryButton}
+                    onPress={openAccount}
+                  >
+                    <Text style={accountStyles.buttonText}>Open</Text>
+                  </Pressable>
+                )
+              ) : (
+                <View style={accountStyles.actions}>
+                  <Pressable
+                    style={accountStyles.actionRow}
+                    onPress={logout}
+                  >
+                    <View style={accountStyles.actionRowLabel}>
+                      <MaterialCommunityIcons
+                        name="logout"
+                        size={22}
+                        color="#D8DCE3"
+                      />
+                      <Text style={accountStyles.actionRowText}>Log Out</Text>
+                    </View>
+                  </Pressable>
+
+                  <Pressable
+                    style={[
+                      accountStyles.actionRow,
+                      accountStyles.deleteActionRow,
+                    ]}
+                    onPress={deleteAccount}
+                  >
+                    <View style={accountStyles.actionRowLabel}>
+                      <MaterialCommunityIcons
+                        name="trash-can-outline"
+                        size={22}
+                        color="#FFFFFF"
+                      />
+                      <Text style={accountStyles.actionRowText}>
+                        Delete Account
+                      </Text>
+                    </View>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          </>
+        )}
+      </View>
+
+    </ScrollView>
+  );
+}
