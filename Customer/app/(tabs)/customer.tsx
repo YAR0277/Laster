@@ -46,7 +46,9 @@ export default function RenterScreen() {
   const [routeDistance, setRouteDistance] = useState<number | null>(null);
   const [routeFare, setRouteFare] = useState<number | null>(null);
   const [calculatingRoute, setCalculatingRoute] = useState(false);
-  const [routeError, setRouteError] = useState<string | null>(null);  
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const [requestingTrip, setRequestingTrip] = useState(false);
+  const [completingTrip, setCompletingTrip] = useState(false);  
   const METERS_PER_MILE = 1609.344;
 
   useEffect(() => {
@@ -284,6 +286,8 @@ export default function RenterScreen() {
 
   const requestTrip = async () => {
 
+    if (requestingTrip) return;
+
     if (!supabaseAuthUser || !customer) {
       Alert.alert(
         'Customer Account Required',
@@ -317,132 +321,154 @@ export default function RenterScreen() {
       return;
     }
 
-    let cargoPhotoUrl = '';
+    setRequestingTrip(true);
 
-    if (cargoPhoto) {
-      const file = new File(cargoPhoto);
-      const arrayBuffer = await file.arrayBuffer();
+    try {    
 
-      const fileName = `${uuidv4()}.jpg`;
+      let cargoPhotoUrl = '';
 
-      const { error: uploadError } = await supabase.storage
-        .from('cargo-photos')
-        .upload(fileName, arrayBuffer, {
-          contentType: 'image/jpeg',
-          upsert: false,
-        });
+      if (cargoPhoto) {
+        const file = new File(cargoPhoto);
+        const arrayBuffer = await file.arrayBuffer();
 
-      if (uploadError) {
+        const fileName = `${uuidv4()}.jpg`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('cargo-photos')
+          .upload(fileName, arrayBuffer, {
+            contentType: 'image/jpeg',
+            upsert: false,
+          });
+
+        if (uploadError) {
+          Alert.alert(
+            'Photo Upload Error',
+            `The cargo photo could not be uploaded.\n\n${uploadError.message}`
+          );
+          return;
+        }
+
+        const { data } = supabase.storage
+          .from('cargo-photos')
+          .getPublicUrl(fileName);
+
+        cargoPhotoUrl = data.publicUrl;
+      }
+
+      const { data: result, error } = await supabase.functions.invoke(
+        'request-trip',
+        {
+          body: {
+            from,
+            to,
+            cargo,
+            cargoPhoto: cargoPhotoUrl,
+            firstName,
+            phone,
+            payment,
+            fromLatitude: fromLocation?.latitude,
+            fromLongitude: fromLocation?.longitude,
+            toLatitude: toLocation?.latitude,
+            toLongitude: toLocation?.longitude,
+          },
+        },
+      );
+
+      if (error || !result?.trip) {
         Alert.alert(
-          'Photo Upload Error',
-          `The cargo photo could not be uploaded.\n\n${uploadError.message}`
+          'Trip Error',
+          `The trip could not be requested.\n\n${
+            result?.error ?? error?.message ?? 'Unknown error'
+          }`,
         );
         return;
       }
 
-      const { data } = supabase.storage
-        .from('cargo-photos')
-        .getPublicUrl(fileName);
+      const savedTrip = result.trip;
 
-      cargoPhotoUrl = data.publicUrl;
-    }
+      const newTrip: Trip = {
+        tripID: savedTrip.trip_id,
+        customerID: savedTrip.customer_id,
+        driverID: savedTrip.driver_id,
+        customerFirstName: savedTrip.customer_first_name,
+        driverFirstName: savedTrip.driver_first_name,
+        truck: savedTrip.truck,
+        truckPhoto: savedTrip.truck_photo,
+        from: savedTrip.from_location,
+        to: savedTrip.to_location,
+        cargo: savedTrip.cargo,
+        cargoPhoto: savedTrip.cargo_photo,
+        phone: savedTrip.phone,
+        payment: savedTrip.payment,
+        distance: savedTrip.distance,
+        distanceToArrival: savedTrip.distance_to_arrival,
+        fare: savedTrip.fare,
+        payout: savedTrip.payout,
+        requestedAt: savedTrip.requested_at,
+        completedAt: savedTrip.completed_at,
+        status: savedTrip.status,
+        driverRating: null,
+        driverArrivalTrip: null,
+      };
 
-    const { data: result, error } = await supabase.functions.invoke(
-      'request-trip',
-      {
-        body: {
-          from,
-          to,
-          cargo,
-          cargoPhoto: cargoPhotoUrl,
-          firstName,
-          phone,
-          payment,
-          fromLatitude: fromLocation?.latitude,
-          fromLongitude: fromLocation?.longitude,
-          toLatitude: toLocation?.latitude,
-          toLongitude: toLocation?.longitude,
-        },
-      },
-    );
+      // Keep the local context in sync with the saved database record.
+      setTrips((currentTrips) => [
+        ...currentTrips,
+        newTrip,
+      ]);
 
-    if (error || !result?.trip) {
+      setCurrentTripID(newTrip.tripID);
+
+      await AsyncStorage.setItem(
+        'laster_current_trip_id',
+        newTrip.tripID,
+      );
+
+      Alert.alert(
+        'Trip Requested',
+        `Your trip has been requested.\n\nFare: $${Number(newTrip.fare).toFixed(2)}`,
+      );
+    } catch (error) {
+      console.error('Request trip failed:', error);
       Alert.alert(
         'Trip Error',
-        `The trip could not be requested.\n\n${
-          result?.error ?? error?.message ?? 'Unknown error'
-        }`,
+        'An unexpected error occurred while requesting your trip. Please try again.',
       );
-      return;
-    }
-
-    const savedTrip = result.trip;
-
-    const newTrip: Trip = {
-      tripID: savedTrip.trip_id,
-      customerID: savedTrip.customer_id,
-      driverID: savedTrip.driver_id,
-      customerFirstName: savedTrip.customer_first_name,
-      driverFirstName: savedTrip.driver_first_name,
-      truck: savedTrip.truck,
-      truckPhoto: savedTrip.truck_photo,
-      from: savedTrip.from_location,
-      to: savedTrip.to_location,
-      cargo: savedTrip.cargo,
-      cargoPhoto: savedTrip.cargo_photo,
-      phone: savedTrip.phone,
-      payment: savedTrip.payment,
-      distance: savedTrip.distance,
-      distanceToArrival: savedTrip.distance_to_arrival,
-      fare: savedTrip.fare,
-      payout: savedTrip.payout,
-      requestedAt: savedTrip.requested_at,
-      completedAt: savedTrip.completed_at,
-      status: savedTrip.status,
-      driverRating: null,
-      driverArrivalTrip: null,
-    };
-
-    // Keep the local context in sync with the saved database record.
-    setTrips((currentTrips) => [
-      ...currentTrips,
-      newTrip,
-    ]);
-
-    setCurrentTripID(newTrip.tripID);
-
-    await AsyncStorage.setItem(
-      'laster_current_trip_id',
-      newTrip.tripID,
-    );
-
-    Alert.alert(
-      'Trip Requested',
-      `Your trip has been requested.\n\nFare: $${Number(newTrip.fare).toFixed(2)}`,
-    );
+    } finally {
+      setRequestingTrip(false);
+    }      
   };
 
   const completeTrip = async () => {
-    if (!currentTripID) return;
+    if (!currentTripID || completingTrip) return;
 
-    const { data, error } = await supabase.functions.invoke('complete-trip', {
-      body: { tripID: currentTripID },
-    });
+    setCompletingTrip(true);
 
-    if (error || data?.error) {
-      console.error('Complete trip error:', error?.message ?? data?.error);
-      Alert.alert(
-        'Trip Error',
-        data?.error ?? `The trip could not be completed.\n\n${error?.message ?? 'Please try again.'}`,
+    try {
+      const { data, error } = await supabase.functions.invoke('complete-trip', {
+        body: { tripID: currentTripID },
+      });
+
+      if (error || data?.error) {
+        console.error('Complete trip error:', error?.message ?? data?.error);
+        Alert.alert(
+          'Trip Error',
+          data?.error ?? `The trip could not be completed.\n\n${error?.message ?? 'Please try again.'}`,
+        );
+        return;
+      }
+
+      setTrips((currentTrips) =>
+        currentTrips.map((trip) =>
+          trip.tripID === currentTripID ? { ...trip, status: 'Completed' } : trip
+        )
       );
-      return;
+    } catch (error) {
+      console.error('Complete trip failed:', error);
+      Alert.alert('Trip Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setCompletingTrip(false);
     }
-
-    setTrips((currentTrips) =>
-      currentTrips.map((trip) =>
-        trip.tripID === currentTripID ? { ...trip, status: 'Completed' } : trip
-      )
-    );
   };
 
   const abortTrip = async () => {
@@ -842,11 +868,15 @@ export default function RenterScreen() {
         {/* Request Trip */}
         {status === 'Not submitted' && (
           <Pressable
-            style={customerStyles.button}
+            style={[
+              customerStyles.button,
+              requestingTrip && { opacity: 0.6 },
+            ]}
             onPress={requestTrip}
+            disabled={requestingTrip}
           >
             <Text style={customerStyles.buttonText}>
-              Request Trip
+              {requestingTrip ? 'Requesting Trip...' : 'Request Trip'}
             </Text>
 
             <MaterialCommunityIcons
@@ -929,11 +959,15 @@ export default function RenterScreen() {
             </View>
 
             <Pressable
-              style={customerStyles.button}
+              style={[
+                customerStyles.button,
+                completingTrip && { opacity: 0.6 },
+              ]}
               onPress={completeTrip}
+              disabled={completingTrip}
             >
               <Text style={customerStyles.buttonText}>
-                Complete Trip
+                {completingTrip ? 'Completing Trip...' : 'Complete Trip'}
               </Text>
 
               <MaterialCommunityIcons

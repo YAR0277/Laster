@@ -23,11 +23,11 @@ export default function DriverScreen() {
   const { trips, setTrips } = useTrip();
   const { driver, loading: driverLoading } = useDriver();
   const router = useRouter();
-
   const [available, setAvailable] = useState(false);
   const [availabilityLoading, setAvailabilityLoading] = useState(true);
   const [availabilityUpdating, setAvailabilityUpdating] = useState(false);
   const [acceptingTripID, setAcceptingTripID] = useState<string | null>(null);
+  const [startingTripID, setStartingTripID] = useState<string | null>(null);
 
   useEffect(() => {
     if (driverLoading) return;
@@ -293,8 +293,6 @@ export default function DriverScreen() {
         return;
       }
 
-      console.log('Trip acceptance saved:', acceptance);
-
       // The server has also set the database availability to false.
       setAvailable(false);
 
@@ -331,41 +329,53 @@ export default function DriverScreen() {
   };
 
   const startTrip = async (tripID: string) => {
-    if (!driver) return;
+    if (!driver || startingTripID !== null) return;
 
-    const { data: updatedTrips, error } = await supabase
-      .from('trips')
-      .update({
-        status: 'Started',
-      })
-      .eq('trip_id', tripID)
-      .eq('driver_id', driver.driverID)
-      .eq('status', 'Accepted')
-      .select('trip_id');
+    setStartingTripID(tripID);
 
-    if (error) {
+    try {
+      const { data: updatedTrips, error } = await supabase
+        .from('trips')
+        .update({
+          status: 'Started',
+        })
+        .eq('trip_id', tripID)
+        .eq('driver_id', driver.driverID)
+        .eq('status', 'Accepted')
+        .select('trip_id');
+
+      if (error) {
+        Alert.alert(
+          'Trip Error',
+          `The trip could not be started.\n\n${error.message}`
+        );
+        return;
+      }
+
+      if (!updatedTrips || updatedTrips.length === 0) {
+        Alert.alert(
+          'Trip Not Started',
+          'The trip is no longer accepted or cannot be updated.'
+        );
+        return;
+      }
+
+      setTrips((currentTrips) =>
+        currentTrips.map((trip) =>
+          trip.tripID === tripID
+            ? { ...trip, status: 'Started' }
+            : trip
+        )
+      );
+    } catch (error) {
+      console.error('Start trip failed:', error);
       Alert.alert(
         'Trip Error',
-        `The trip could not be started.\n\n${error.message}`
+        'An unexpected error occurred while starting the trip. Please try again.'
       );
-      return;
+    } finally {
+      setStartingTripID(null);
     }
-
-    if (!updatedTrips || updatedTrips.length === 0) {
-      Alert.alert(
-        'Trip Not Started',
-        'The trip is no longer accepted or cannot be updated.'
-      );
-      return;
-    }
-
-    setTrips((currentTrips) =>
-      currentTrips.map((trip) =>
-        trip.tripID === tripID
-          ? { ...trip, status: 'Started' }
-          : trip
-      )
-    );
   };
 
   const abortTrip = async (tripID: string) => {
@@ -578,15 +588,22 @@ export default function DriverScreen() {
             {trip.status === 'Accepted' && (
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <Pressable
-                  style={[driverStyles.acceptButton, { flex: 1 }]}
+                  style={[
+                    driverStyles.acceptButton,
+                    { flex: 1 },
+                    startingTripID !== null && { opacity: 0.6 },
+                  ]}
                   onPress={() => startTrip(trip.tripID)}
+                  disabled={startingTripID !== null}
                 >
                   <MaterialCommunityIcons
                     name="play-circle"
                     size={22}
                     color="#FFFFFF"
                   />
-                  <Text style={driverStyles.buttonText}>Start</Text>
+                  <Text style={driverStyles.buttonText}>
+                    {startingTripID === trip.tripID ? 'Starting...' : 'Start'}
+                  </Text>
                 </Pressable>
 
                 <Pressable
