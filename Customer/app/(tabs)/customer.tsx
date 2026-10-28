@@ -53,6 +53,11 @@ export default function RenterScreen() {
     let cancelled = false;
 
     const setCurrentLocation = async () => {
+
+      if (!supabaseAuthUser || !customer) {
+        return;
+      }
+
       // Only set the default when the From field is empty.
       if (from.trim() !== '' || fromLocation !== null) {
         return;
@@ -123,7 +128,7 @@ export default function RenterScreen() {
     return () => {
       cancelled = true;
     };
-  }, [from, fromLocation]);
+  }, [from, fromLocation, supabaseAuthUser, customer]);
 
   useEffect(() => {
     let cancelled = false;
@@ -279,6 +284,21 @@ export default function RenterScreen() {
 
   const requestTrip = async () => {
 
+    if (!supabaseAuthUser || !customer) {
+      Alert.alert(
+        'Customer Account Required',
+        'Please log in or open a Laster customer account before requesting a trip.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Login / Account',
+            onPress: () => router.push('/customer_account?mode=default'),
+          },
+        ],
+      );
+      return;
+    }
+
     // Required rental information
     if (!from || !to || !cargo || !firstName || !phone || !payment) {
       Alert.alert(
@@ -293,22 +313,6 @@ export default function RenterScreen() {
       Alert.alert(
         'Route Not Ready',
         'Please select both locations and wait for the distance and fare to be calculated.',
-      );
-      return;
-    }
-
-    // Only registered customers may request a trip.
-    if (!supabaseAuthUser || !customer) {
-      Alert.alert(
-        'Customer Account Required',
-        'Please log in or open a Laster customer account before requesting a trip.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Login / Account',
-            onPress: () => router.push('/customer_account?mode=default'),
-          },
-        ],
       );
       return;
     }
@@ -559,8 +563,9 @@ export default function RenterScreen() {
         </View>
       </View>
 
-      {/* Trip Details */}
-      <View style={customerStyles.tripCard}>
+      {/* Trip Details — authenticated customers only */}
+      {supabaseAuthUser && customer && (
+        <View style={customerStyles.tripCard}>
 
         <Text style={customerStyles.sectionTitle}>Trip Details</Text>
 
@@ -939,7 +944,8 @@ export default function RenterScreen() {
             </Pressable>
           </>
         )}
-      </View>
+        </View>
+      )}
 
       {/* Rate Your Driver */}
       {status === 'Completed' && (

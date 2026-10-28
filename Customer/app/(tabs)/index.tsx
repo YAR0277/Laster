@@ -2,9 +2,9 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
-
 import { styles as commonStyles } from '../../components/common';
 import { styles as indexStyles } from '../../components/index';
+import { useAuth } from '../../data/auth';
 import { supabase } from '../../lib/supabase';
 
 export default function HomeScreen() {
@@ -13,6 +13,7 @@ export default function HomeScreen() {
   const [averageFare, setAverageFare] = useState<number | null>(null);
   const [pickupsAvailable, setPickupsAvailable] = useState<number | null>(null);
   const [averageDistance, setAverageDistance] = useState<number | null>(null);
+  const { user } = useAuth();
 
   useFocusEffect(
     useCallback(() => {
@@ -48,12 +49,19 @@ export default function HomeScreen() {
   );
 
   useEffect(() => {
+    const customerID = user?.id;
     let cancelled = false;
+
+    if (!customerID) {
+      setAverageFare(null);
+      return;
+    }
 
     const loadAverageFare = async () => {
       const { data, error } = await supabase
         .from('trips')
         .select('fare')
+        .eq('customer_id', customerID)
         .not('fare', 'is', null);
 
       if (error) {
@@ -82,15 +90,22 @@ export default function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
+    const customerID = user?.id;
     let cancelled = false;
 
+    if (!customerID) {
+      setAverageDistance(null);
+      return;
+    }
+    
     const loadAverageDistance = async () => {
       const { data, error } = await supabase
         .from('trips')
         .select('distance')
+        .eq('customer_id', customerID)
         .not('distance', 'is', null);
 
       if (error) {
@@ -120,7 +135,7 @@ export default function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [user?.id]);
 
   const closeMenu = () => setMenuVisible(false);
 
