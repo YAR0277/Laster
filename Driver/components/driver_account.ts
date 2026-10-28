@@ -115,13 +115,11 @@ export const styles = StyleSheet.create({
   },
 
   primaryButton: {
-    flexDirection: 'row',
-    gap: 10,
     minHeight: 50,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#414752',
+    backgroundColor: '#F59E0B',
     marginBottom: 12,
   },
 
@@ -130,8 +128,14 @@ export const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#414752',
+    backgroundColor: '#555C68',
     marginBottom: 12,
+  },
+
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
   },
 
   deleteButton: {
@@ -140,12 +144,6 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#8A3F3F',
-  },
-
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '500',
   },
 
   toggleContainer: {
@@ -210,7 +208,7 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#414752',
+    backgroundColor: '#F59E0B',
     paddingVertical: 10,
     borderRadius: 8,
     marginTop: 8,

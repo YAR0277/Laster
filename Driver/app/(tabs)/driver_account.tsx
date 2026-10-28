@@ -848,14 +848,7 @@ export default function DriverAccountScreen() {
             style={accountStyles.primaryButton}
             onPress={updateAccount}
           >
-            <MaterialCommunityIcons
-              name="content-save-outline"
-              size={21}
-              color="#FFFFFF"
-            />
-            <Text style={accountStyles.buttonText}>
-              Update Account
-            </Text>
+            <Text style={accountStyles.buttonText}>Update Account</Text>
           </Pressable>
         </View>
       )}
@@ -985,89 +978,37 @@ export default function DriverAccountScreen() {
 
       {/* Actions */}
       <View style={accountStyles.actions}>
-      {!hasAccount ? (
-        <>
-          {accountMode === 'login' ? (
-            <Pressable
-              style={accountStyles.primaryButton}
-              onPress={login}
-            >
-              <Text style={accountStyles.buttonText}>
-                Login
-              </Text>
-            </Pressable>
-          ) : (
-            <Pressable
-              style={accountStyles.primaryButton}
-              onPress={openAccount}
-            >
-              <Text style={accountStyles.buttonText}>
-                Open
-              </Text>
-            </Pressable>
-          )}
-        </>
-      ) : (
+        {!hasAccount ? (
+          <Pressable
+            style={accountStyles.primaryButton}
+            onPress={accountMode === 'login' ? login : openAccount}
+          >
+            <Text style={accountStyles.buttonText}>
+              {accountMode === 'login' ? 'Login' : 'Open'}
+            </Text>
+          </Pressable>
+        ) : (
           <>
-            {/* Account Actions / Login */}
-            <View style={accountStyles.actions}>
-              {!hasAccount ? (
-                accountMode === 'login' ? (
-                  <Pressable
-                    style={accountStyles.primaryButton}
-                    onPress={login}
-                  >
-                    <Text style={accountStyles.buttonText}>Login</Text>
-                  </Pressable>
-                ) : (
-                  <Pressable
-                    style={accountStyles.primaryButton}
-                    onPress={openAccount}
-                  >
-                    <Text style={accountStyles.buttonText}>Open</Text>
-                  </Pressable>
-                )
-              ) : (
-                <View style={accountStyles.actions}>
-                  <Pressable
-                    style={accountStyles.actionRow}
-                    onPress={logout}
-                  >
-                    <View style={accountStyles.actionRowLabel}>
-                      <MaterialCommunityIcons
-                        name="logout"
-                        size={22}
-                        color="#D8DCE3"
-                      />
-                      <Text style={accountStyles.actionRowText}>Log Out</Text>
-                    </View>
-                  </Pressable>
+            <Pressable
+              style={accountStyles.primaryButton}
+              onPress={logout}
+            >
+              <Text style={accountStyles.buttonText}>
+                Logout
+              </Text>
+            </Pressable>
 
-                  <Pressable
-                    style={[
-                      accountStyles.actionRow,
-                      accountStyles.deleteActionRow,
-                    ]}
-                    onPress={deleteAccount}
-                  >
-                    <View style={accountStyles.actionRowLabel}>
-                      <MaterialCommunityIcons
-                        name="trash-can-outline"
-                        size={22}
-                        color="#FFFFFF"
-                      />
-                      <Text style={accountStyles.actionRowText}>
-                        Delete Account
-                      </Text>
-                    </View>
-                  </Pressable>
-                </View>
-              )}
-            </View>
+            <Pressable
+              style={accountStyles.deleteButton}
+              onPress={deleteAccount}
+            >
+              <Text style={accountStyles.buttonText}>
+                Delete Account
+              </Text>
+            </Pressable>
           </>
         )}
       </View>
-
     </ScrollView>
   );
 }
