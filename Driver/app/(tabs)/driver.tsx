@@ -28,6 +28,7 @@ export default function DriverScreen() {
   const [availabilityUpdating, setAvailabilityUpdating] = useState(false);
   const [acceptingTripID, setAcceptingTripID] = useState<string | null>(null);
   const [startingTripID, setStartingTripID] = useState<string | null>(null);
+  const [abortingTripID, setAbortingTripID] = useState<string | null>(null);
 
   useEffect(() => {
     if (driverLoading) return;
@@ -379,36 +380,48 @@ export default function DriverScreen() {
   };
 
   const abortTrip = async (tripID: string) => {
-    if (!driver) return;
+    if (!driver || abortingTripID !== null) return;
 
-    const { data, error } = await supabase.functions.invoke(
-      'abort-trip',
-      {
-        body: { tripID },
-      }
-    );
+    setAbortingTripID(tripID);
 
-    if (error || data?.error) {
-      console.error(
-        'Abort trip error:',
-        error?.message ?? data?.error
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'abort-trip',
+        {
+          body: { tripID },
+        }
       );
 
+      if (error || data?.error) {
+        console.error(
+          'Abort trip error:',
+          error?.message ?? data?.error
+        );
+
+        Alert.alert(
+          'Trip Error',
+          data?.error ??
+            `The trip could not be aborted.\n\n${error?.message ?? 'Please try again.'}`
+        );
+        return;
+      }
+
+      setTrips((currentTrips) =>
+        currentTrips.map((trip) =>
+          trip.tripID === tripID
+            ? { ...trip, status: 'Aborted' }
+            : trip
+        )
+      );
+    } catch (error) {
+      console.error('Abort trip failed:', error);
       Alert.alert(
         'Trip Error',
-        data?.error ??
-          `The trip could not be aborted.\n\n${error?.message ?? 'Please try again.'}`
+        'An unexpected error occurred while aborting the trip. Please try again.',
       );
-      return;
+    } finally {
+      setAbortingTripID(null);
     }
-
-    setTrips((currentTrips) =>
-      currentTrips.map((trip) =>
-        trip.tripID === tripID
-          ? { ...trip, status: 'Aborted' }
-          : trip
-      )
-    );
   };
 
   const visibleTrips = trips.filter(
@@ -607,8 +620,13 @@ export default function DriverScreen() {
                 </Pressable>
 
                 <Pressable
-                  style={[driverStyles.abortButton, { flex: 1 }]}
+                  style={[
+                    driverStyles.abortButton,
+                    { flex: 1 },
+                    abortingTripID !== null && { opacity: 0.6 },
+                  ]}
                   onPress={() => abortTrip(trip.tripID)}
+                  disabled={abortingTripID !== null}
                 >
                   <MaterialCommunityIcons
                     name="close-circle"
@@ -616,7 +634,7 @@ export default function DriverScreen() {
                     color="#FFFFFF"
                   />
                   <Text style={driverStyles.buttonText}>
-                    Abort Trip
+                    {abortingTripID === trip.tripID ? 'Aborting...' : 'Abort'}
                   </Text>
                 </Pressable>
               </View>

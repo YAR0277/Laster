@@ -48,7 +48,8 @@ export default function RenterScreen() {
   const [calculatingRoute, setCalculatingRoute] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [requestingTrip, setRequestingTrip] = useState(false);
-  const [completingTrip, setCompletingTrip] = useState(false);  
+  const [completingTrip, setCompletingTrip] = useState(false);
+  const [abortingTrip, setAbortingTrip] = useState(false);
   const METERS_PER_MILE = 1609.344;
 
   useEffect(() => {
@@ -472,26 +473,38 @@ export default function RenterScreen() {
   };
 
   const abortTrip = async () => {
-    if (!currentTripID || currentTrip?.status !== 'Requested') return;
+    if (!currentTripID || currentTrip?.status !== 'Requested' || abortingTrip) return;
 
-    const { data, error } = await supabase.functions.invoke('abort-trip', {
-      body: { tripID: currentTripID },
-    });
+    setAbortingTrip(true);
 
-    if (error || data?.error) {
-      console.error('Abort trip error:', error?.message ?? data?.error);
+    try {
+      const { data, error } = await supabase.functions.invoke('abort-trip', {
+        body: { tripID: currentTripID },
+      });
+
+      if (error || data?.error) {
+        console.error('Abort trip error:', error?.message ?? data?.error);
+        Alert.alert(
+          'Trip Error',
+          data?.error ?? `The trip could not be aborted.\n\n${error?.message ?? 'Please try again.'}`,
+        );
+        return;
+      }
+
+      setTrips((currentTrips) =>
+        currentTrips.map((trip) =>
+          trip.tripID === currentTripID ? { ...trip, status: 'Aborted' } : trip
+        )
+      );
+    } catch (error) {
+      console.error('Abort trip failed:', error);
       Alert.alert(
         'Trip Error',
-        data?.error ?? `The trip could not be aborted.\n\n${error?.message ?? 'Please try again.'}`,
+        'An unexpected error occurred while aborting your trip. Please try again.',
       );
-      return;
+    } finally {
+      setAbortingTrip(false);
     }
-
-    setTrips((currentTrips) =>
-      currentTrips.map((trip) =>
-        trip.tripID === currentTripID ? { ...trip, status: 'Aborted' } : trip
-      )
-    );
   };
 
   const startNewTrip = async () => {
@@ -821,14 +834,18 @@ export default function RenterScreen() {
           </Text>
         )}
 
-        {/* Abort Trip*/}
+        {/* Abort Trip */}
         {status === 'Requested' && (
           <Pressable
-            style={customerStyles.abortButton}
+            style={[
+              customerStyles.abortButton,
+              abortingTrip && { opacity: 0.6 },
+            ]}
             onPress={abortTrip}
+            disabled={abortingTrip}
           >
             <Text style={customerStyles.abortButtonText}>
-              Abort Trip
+              {abortingTrip ? 'Aborting Trip...' : 'Abort Trip'}
             </Text>
 
             <MaterialCommunityIcons
