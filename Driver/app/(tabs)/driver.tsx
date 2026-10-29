@@ -284,12 +284,25 @@ export default function DriverScreen() {
         acceptance?.error ||
         acceptance?.status !== 'Accepted'
       ) {
-        const message =
+        let message =
           acceptance?.error ??
-          error?.message ??
           'The trip could not be accepted. Please refresh and try again.';
 
-        console.error('Trip acceptance failed:', message);
+        if (error) {
+          try {
+            const response = error.context;
+            if (response && typeof response.json === 'function') {
+              const details = await response.json();
+              if (typeof details?.error === 'string') {
+                message = details.error;
+              }
+            }
+          } catch {
+            // Keep the fallback message if the response body is unavailable.
+          }
+        }
+
+        console.log('Trip acceptance failed:', message);
         Alert.alert('Trip Not Accepted', message);
         return;
       }
@@ -386,7 +399,7 @@ export default function DriverScreen() {
 
     try {
       const { data, error } = await supabase.functions.invoke(
-        'abort-trip',
+        'abort-trip-driver',
         {
           body: { tripID },
         }
@@ -409,7 +422,12 @@ export default function DriverScreen() {
       setTrips((currentTrips) =>
         currentTrips.map((trip) =>
           trip.tripID === tripID
-            ? { ...trip, status: 'Aborted' }
+            ? {
+                ...trip,
+                status: 'Requested',
+                driverID: null,
+                driverFirstName: '',
+              }
             : trip
         )
       );

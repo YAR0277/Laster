@@ -478,7 +478,7 @@ export default function RenterScreen() {
     setAbortingTrip(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('abort-trip', {
+      const { data, error } = await supabase.functions.invoke('abort-trip-customer', {
         body: { tripID: currentTripID },
       });
 
@@ -836,24 +836,30 @@ export default function RenterScreen() {
 
         {/* Abort Trip */}
         {status === 'Requested' && (
-          <Pressable
-            style={[
-              customerStyles.abortButton,
-              abortingTrip && { opacity: 0.6 },
-            ]}
-            onPress={abortTrip}
-            disabled={abortingTrip}
-          >
-            <Text style={customerStyles.abortButtonText}>
-              {abortingTrip ? 'Aborting Trip...' : 'Abort Trip'}
-            </Text>
+          <>
+            <Pressable
+              style={[
+                customerStyles.abortButton,
+                abortingTrip && { opacity: 0.6 },
+              ]}
+              onPress={abortTrip}
+              disabled={abortingTrip}
+            >
+              <Text style={customerStyles.abortButtonText}>
+                {abortingTrip ? 'Aborting Trip...' : 'Abort Trip'}
+              </Text>
 
-            <MaterialCommunityIcons
-              name="close"
-              size={22}
-              color="#FFFFFF"
-            />
-          </Pressable>
+              <MaterialCommunityIcons
+                name="close"
+                size={22}
+                color="#FFFFFF"
+              />
+            </Pressable>
+
+            <Text style={customerStyles.abortMessage}>
+              You can abort a trip until a driver accepts it.
+            </Text>
+          </>
         )}
 
         {/* Start New Trip */}
