@@ -3,6 +3,7 @@ import type { Trip, TripRow } from './Trip';
 export function mapTripRow(row: TripRow): Trip {
   return {
     tripID: row.trip_id,
+    displayTripID: row.display_trip_id,
     customerID: row.customer_id,
     driverID: row.driver_id,
     customerFirstName: row.customer_first_name,

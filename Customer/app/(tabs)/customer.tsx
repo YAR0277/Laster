@@ -389,6 +389,7 @@ export default function RenterScreen() {
 
       const newTrip: Trip = {
         tripID: savedTrip.trip_id,
+        displayTripID: savedTrip.display_trip_id,
         customerID: savedTrip.customer_id,
         driverID: savedTrip.driver_id,
         customerFirstName: savedTrip.customer_first_name,

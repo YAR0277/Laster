@@ -1,3 +1,4 @@
+import { formatDisplayTripID } from '@laster/common';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStripe } from '@stripe/stripe-react-native';
 import {
@@ -557,6 +558,10 @@ export default function CustomerAccountScreen() {
               <View>
                 <Text style={accountStyles.tripDate}>
                   {formatTripDate(trip.requestedAt)}
+                </Text>
+
+                <Text style={accountStyles.tripRoute}>
+                  Trip: {formatDisplayTripID(trip.displayTripID)}
                 </Text>
 
                 <Text style={accountStyles.tripRoute}>

@@ -13,6 +13,7 @@ export type DriverArrivalTrip = {
 
 export type Trip = {
   tripID: string;
+  displayTripID: number;
   customerID: string | null;
   driverID: string | null;
   customerFirstName: string;
@@ -38,6 +39,7 @@ export type Trip = {
 
 export type TripRow = {
   trip_id: string;
+  display_trip_id: number;
   customer_id: string | null;
   driver_id: string | null;
   customer_first_name: string;
@@ -61,3 +63,7 @@ export type TripRow = {
   driver_arrival_lat: number | null;
   driver_arrival_lon: number | null;
 };
+
+export function formatDisplayTripID(displayTripID: number): string {
+  return `LST-${String(displayTripID).padStart(6, '0')}`;
+}

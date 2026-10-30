@@ -1,4 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { formatDisplayTripID } from '@laster/common';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -9,8 +11,6 @@ import {
   Text,
   View,
 } from 'react-native';
-
-import * as Location from 'expo-location';
 import { styles as commonStyles } from '../../components/common';
 import { styles as driverStyles } from '../../components/driver';
 import { useDriver } from '../../data/driver';
@@ -529,7 +529,7 @@ export default function DriverScreen() {
           >
             <Text style={driverStyles.tripText}>
               <Text style={driverStyles.tripID}>Trip </Text>
-              {trip.tripID}
+              {formatDisplayTripID(trip.displayTripID)}
             </Text>
 
             <Text style={driverStyles.tripText}>
