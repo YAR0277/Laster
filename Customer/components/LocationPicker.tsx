@@ -1,24 +1,29 @@
-
 import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Button,
-    Keyboard,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Button,
+  Keyboard,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import MapView, {
-    Marker,
-    type MapPressEvent,
-    type Region,
+  Marker,
+  type MapPressEvent,
+  type Region,
 } from 'react-native-maps';
+import {
+  createSessionToken,
+  searchLocations as fetchLocations,
+  retrieveLocation,
+  type SearchResult,
+} from '../lib/locationSearch';
 
 export type SelectedLocation = {
   address: string;
@@ -31,13 +36,6 @@ type LocationPickerProps = {
   title: string;
   onCancel: () => void;
   onSelect: (location: SelectedLocation) => void;
-};
-
-type SearchResult = {
-  mapbox_id: string;
-  name: string;
-  full_address?: string;
-  place_formatted?: string;
 };
 
 const MAPBOX_TOKEN =
@@ -65,6 +63,7 @@ export default function LocationPicker({
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState('');
   const sessionToken = useRef('');
+  const searchRequestId = useRef(0);
   const coordinateAddress = (
     latitude: number,
     longitude: number
@@ -158,65 +157,70 @@ export default function LocationPicker({
   };
 
   useEffect(() => {
-    if (visible) {
-      setQuery('');
-      setResults([]);
-      setSelected(null);
-      setError('');
+    if (!visible) return;
 
-      // Initialize a new search session whenever the picker opens.
-      sessionToken.current =
-        `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setSelected(null);
+    setQuery('');
+    setResults([]);
+    setError('');
+    setSearching(false);
+    setLocating(false);
 
-      void locateMe();
-    }
+    sessionToken.current =
+      `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   }, [visible]);
 
-  const searchAddresses = async () => {
-    Keyboard.dismiss();
-    setError('');
+  useEffect(() => {
+    if (!visible) return;
 
     const searchText = query.trim();
 
-    if (!searchText) {
+    if (searchText.length < 2) {
+      ++searchRequestId.current;
       setResults([]);
+      setSearching(false);
+      setError('');
       return;
     }
 
-    if (!MAPBOX_TOKEN) {
-      setError('Mapbox access token is missing from .env.');
+    const timer = setTimeout(() => {
+      void searchLocations(searchText);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [query, visible]);
+
+  const searchLocations = async (
+    text: string,
+    dismissKeyboard = false
+  ) => {
+    const requestId = ++searchRequestId.current;
+
+    if (dismissKeyboard) {
+      Keyboard.dismiss();
+    }
+
+    setError('');
+    setResults([]);
+
+    if (text.trim().length < 2) {
+      setSearching(false);
       return;
     }
 
     if (!sessionToken.current) {
-      sessionToken.current =
-        `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      sessionToken.current = createSessionToken();
     }
 
     setSearching(true);
-    setResults([]);
 
     try {
-      const params = new URLSearchParams({
-        q: searchText,
-        access_token: MAPBOX_TOKEN,
-        session_token: sessionToken.current,
-        limit: '5',
-        language: 'en',
-        country: 'US',
-      });
+      const suggestions = await fetchLocations(
+        text,
+        sessionToken.current
+      );
 
-      const url =
-        `https://api.mapbox.com/search/searchbox/v1/suggest?${params}`;
-
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(`Mapbox request failed (${response.status}).`);
-      }
-
-      const data = await response.json();
-      const suggestions: SearchResult[] = data.suggestions ?? [];
+      if (requestId !== searchRequestId.current) return;
 
       setResults(suggestions);
 
@@ -224,63 +228,39 @@ export default function LocationPicker({
         setError('No matching locations found.');
       }
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : 'Place search failed.'
-      );
+      if (requestId === searchRequestId.current) {
+        setError(
+          e instanceof Error ? e.message : 'Place search failed.'
+        );
+      }
     } finally {
-      setSearching(false);
+      if (requestId === searchRequestId.current) {
+        setSearching(false);
+      }
     }
   };
 
-
   const chooseSearchResult = async (item: SearchResult) => {
-    if (!MAPBOX_TOKEN) {
-      setError('Mapbox access token is missing from .env.');
-      return;
+    if (!sessionToken.current) {
+      sessionToken.current = createSessionToken();
     }
 
     setSearching(true);
     setError('');
 
     try {
-      const params = new URLSearchParams({
-        access_token: MAPBOX_TOKEN,
-        session_token: sessionToken.current,
-      });
+      const location = await retrieveLocation(
+        item,
+        sessionToken.current
+      );
 
-      const url =
-        `https://api.mapbox.com/search/searchbox/v1/retrieve/` +
-        `${encodeURIComponent(item.mapbox_id)}?${params}`;
+      await selectCoordinates(
+        location.latitude,
+        location.longitude,
+        location.address
+      );
 
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(`Could not retrieve location (${response.status}).`);
-      }
-
-      const data = await response.json();
-      const feature = data.features?.[0];
-      const coordinates = feature?.geometry?.coordinates;
-
-      if (
-        !Array.isArray(coordinates) ||
-        coordinates.length < 2
-      ) {
-        throw new Error('This search result has no coordinates.');
-      }
-
-      const [longitude, latitude] = coordinates;
-      const properties = feature.properties ?? {};
-      const address =
-        properties.full_address ??
-        item.full_address ??
-        item.name;
-
-      await selectCoordinates(latitude, longitude, address);
-
-      // A new session is used for the next search.
-      sessionToken.current =
-        `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      sessionToken.current = createSessionToken();
     } catch (e) {
       setError(
         e instanceof Error ? e.message : 'Could not select this location.'
@@ -326,12 +306,12 @@ export default function LocationPicker({
             placeholderTextColor="#8B9099"
             value={query}
             onChangeText={setQuery}
-            onSubmitEditing={() => void searchAddresses()}
+            onSubmitEditing={() => void searchLocations(query, true)}
             returnKeyType="search"
           />
           <Button
             title={searching ? '...' : 'Search'}
-            onPress={() => void searchAddresses()}
+            onPress={() => void searchLocations(query, true)}
             disabled={searching}
           />
         </View>
@@ -376,11 +356,6 @@ export default function LocationPicker({
         </View>
 
         <View style={styles.footer}>
-          <Button
-            title={locating ? 'Locating...' : 'Use My Location'}
-            onPress={() => void locateMe()}
-            disabled={locating}
-          />
 
           {selected && (
             <Text style={styles.address}>

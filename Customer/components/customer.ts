@@ -78,6 +78,8 @@ export const styles = StyleSheet.create({
     fontSize: 15,
     color: '#F5F5F5',
     backgroundColor: '#292F38',
+    textAlign: 'left',
+    writingDirection: 'ltr',
   },
 
   infoRow: {

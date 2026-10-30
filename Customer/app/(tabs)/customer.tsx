@@ -4,7 +4,7 @@ import { File } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -24,6 +24,12 @@ import LocationPicker, {
 import { useAuth } from '../../data/auth';
 import { useCustomer } from '../../data/customer';
 import { Trip, useTrip } from '../../data/trip';
+import {
+  createSessionToken,
+  retrieveLocation,
+  searchLocations,
+  type SearchResult
+} from '../../lib/locationSearch';
 import { supabase } from '../../lib/supabase';
 
 export default function RenterScreen() {
@@ -43,7 +49,16 @@ export default function RenterScreen() {
   const [locationPickerFor, setLocationPickerFor] = useState<'from' | 'to' | null>(null);
   const [fromLocation, setFromLocation] = useState<SelectedLocation | null>(null);
   const [toLocation, setToLocation] = useState<SelectedLocation | null>(null);
-  const [routeDistance, setRouteDistance] = useState<number | null>(null);
+  const [fromSuggestions, setFromSuggestions] = useState<SearchResult[]>([]);
+  const [toSuggestions, setToSuggestions] = useState<SearchResult[]>([]);
+  const [searchingFrom, setSearchingFrom] = useState(false);
+  const [searchingTo, setSearchingTo] = useState(false);
+  const fromSessionToken = useRef(createSessionToken());
+  const toSessionToken = useRef(createSessionToken());
+  const fromSearchRequest = useRef(0);
+  const toSearchRequest = useRef(0);  const [routeDistance, setRouteDistance] = useState<number | null>(null);
+  const fromSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);  
   const [routeFare, setRouteFare] = useState<number | null>(null);
   const [calculatingRoute, setCalculatingRoute] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
@@ -268,6 +283,142 @@ export default function RenterScreen() {
       setPayment('');
     }    
   }, [customer, currentTrip]);  
+
+  const handleFromChange = (text: string) => {
+    setFrom(text);
+    setFromLocation(null);
+    setFromSuggestions([]);
+
+    if (fromSearchTimer.current) {
+      clearTimeout(fromSearchTimer.current);
+    }
+
+    const requestId = ++fromSearchRequest.current;
+
+    if (text.trim().length < 2) {
+      setSearchingFrom(false);
+      return;
+    }
+
+    setSearchingFrom(true);
+
+    fromSearchTimer.current = setTimeout(async () => {
+      try {
+        const results = await searchLocations(
+          text,
+          fromSessionToken.current
+        );
+
+        if (requestId === fromSearchRequest.current) {
+          setFromSuggestions(results);
+        }
+      } catch (error) {
+        console.warn('From location search failed:', error);
+      } finally {
+        if (requestId === fromSearchRequest.current) {
+          setSearchingFrom(false);
+        }
+      }
+    }, 300);
+  };
+
+  const handleToChange = (text: string) => {
+    setTo(text);
+    setToLocation(null);
+    setToSuggestions([]);
+
+    if (toSearchTimer.current) {
+      clearTimeout(toSearchTimer.current);
+    }
+
+    const requestId = ++toSearchRequest.current;
+
+    if (text.trim().length < 2) {
+      setSearchingTo(false);
+      return;
+    }
+
+    setSearchingTo(true);
+
+    toSearchTimer.current = setTimeout(async () => {
+      try {
+        const results = await searchLocations(
+          text,
+          toSessionToken.current
+        );
+
+        if (requestId === toSearchRequest.current) {
+          setToSuggestions(results);
+        }
+      } catch (error) {
+        console.warn('To location search failed:', error);
+      } finally {
+        if (requestId === toSearchRequest.current) {
+          setSearchingTo(false);
+        }
+      }
+    }, 300);
+  };
+
+  const chooseFromSuggestion = async (item: SearchResult) => {
+    const requestId = ++fromSearchRequest.current;
+
+    if (fromSearchTimer.current) {
+      clearTimeout(fromSearchTimer.current);
+    }
+
+    setSearchingFrom(true);
+
+    try {
+      const location = await retrieveLocation(
+        item,
+        fromSessionToken.current
+      );
+
+      if (requestId !== fromSearchRequest.current) return;
+
+      setFrom(location.address);
+      setFromLocation(location);
+      setFromSuggestions([]);
+      fromSessionToken.current = createSessionToken();
+    } catch (error) {
+      console.warn('Could not select starting location:', error);
+    } finally {
+      if (requestId === fromSearchRequest.current) {
+        setSearchingFrom(false);
+      }
+    }
+  };
+
+  const chooseToSuggestion = async (item: SearchResult) => {
+    const requestId = ++toSearchRequest.current;
+
+    if (toSearchTimer.current) {
+      clearTimeout(toSearchTimer.current);
+    }
+
+    setSearchingTo(true);
+
+    try {
+      const location = await retrieveLocation(
+        item,
+        toSessionToken.current
+      );
+
+      if (requestId !== toSearchRequest.current) return;
+
+      setTo(location.address);
+      setToLocation(location);
+      setToSuggestions([]);
+      toSessionToken.current = createSessionToken();
+    } catch (error) {
+      console.warn('Could not select destination:', error);
+    } finally {
+      if (requestId === toSearchRequest.current) {
+        setSearchingTo(false);
+      }
+    }
+  };
 
   const pickCargoPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -610,7 +761,7 @@ export default function RenterScreen() {
         <Text style={customerStyles.sectionTitle}>Trip Details</Text>
 
         {/* From */}
-        <View style={customerStyles.inputGroup}>
+        <View style={[customerStyles.inputGroup, { marginBottom: 20 }]}>
           <View style={customerStyles.fieldHeader}>
             <MaterialCommunityIcons
               name="map-marker-outline"
@@ -621,17 +772,51 @@ export default function RenterScreen() {
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <TextInput
-              style={[customerStyles.input, { flex: 1 }]}
-              placeholder="Where from?"
-              placeholderTextColor="#888"
-              value={from}
-              onChangeText={(value) => {
-                setFrom(value);
+            {fromLocation ? (
+              <Pressable
+                style={[customerStyles.input, { flex: 1, justifyContent: 'center' }]}
+                onPress={() => setFromLocation(null)}
+                disabled={status !== 'Not submitted'}
+              >
+                <Text
+                  style={{ color: '#F5F5F5', fontSize: 15 }}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {from}
+                </Text>
+              </Pressable>
+            ) : (
+              <TextInput
+                style={[customerStyles.input, { flex: 1 }]}
+                placeholder="Where from?"
+                placeholderTextColor="#888"
+                value={from}
+                onChangeText={handleFromChange}
+                editable={status === 'Not submitted'}
+              />
+            )}
+
+            <Pressable
+              onPress={() => {
+                setFrom('');
                 setFromLocation(null);
+                setFromSuggestions([]);
+                ++fromSearchRequest.current;
+                if (fromSearchTimer.current) {
+                  clearTimeout(fromSearchTimer.current);
+                }
+                setSearchingFrom(false);                
               }}
-              editable={status === 'Not submitted'}
-            />
+              disabled={status !== 'Not submitted' || from.length === 0}
+              accessibilityLabel="Clear starting location"
+            >
+              <MaterialCommunityIcons
+                name="close-circle"
+                size={20}
+                color={from.length > 0 ? '#B8BCC4' : '#555B66'}
+              />
+            </Pressable>
 
             <Pressable
               onPress={() => setLocationPickerFor('from')}
@@ -645,10 +830,40 @@ export default function RenterScreen() {
               />
             </Pressable>
           </View>
+          {fromSuggestions.length > 0 && status === 'Not submitted' && (
+            <View style={{
+              marginTop: 6,
+              backgroundColor: '#303641',
+              borderRadius: 10,
+              overflow: 'hidden',
+            }}>
+              {fromSuggestions.map((item) => (
+                <Pressable
+                  key={item.mapbox_id}
+                  onPress={() => chooseFromSuggestion(item)}
+                  style={{
+                    paddingVertical: 12,
+                    paddingHorizontal: 14,
+                    borderBottomWidth: 1,
+                    borderBottomColor: '#454C58',
+                  }}
+                >
+                  <Text style={{ color: '#F5F5F5', fontSize: 15 }}>
+                    {item.name}
+                  </Text>
+                  {item.place_formatted ? (
+                    <Text style={{ color: '#B8BCC4', fontSize: 13, marginTop: 3 }}>
+                      {item.place_formatted}
+                    </Text>
+                  ) : null}
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* To */}
-        <View style={customerStyles.inputGroup}>
+        <View style={[customerStyles.inputGroup, { marginBottom: 20 }]}>
           <View style={customerStyles.fieldHeader}>
             <MaterialCommunityIcons
               name="map-marker-check-outline"
@@ -658,18 +873,52 @@ export default function RenterScreen() {
             <Text style={customerStyles.fieldLabel}>To</Text>
           </View>
 
-          <View style={{flexDirection: 'row',alignItems: 'center', gap: 8 }}>
-            <TextInput
-              style={[customerStyles.input, { flex: 1 }]}
-              placeholder="Where to?"
-              placeholderTextColor="#888"
-              value={to}
-              onChangeText={(value) => {
-                setTo(value);
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {toLocation ? (
+              <Pressable
+                style={[customerStyles.input, { flex: 1, justifyContent: 'center' }]}
+                onPress={() => setToLocation(null)}
+                disabled={status !== 'Not submitted'}
+              >
+                <Text
+                  style={{ color: '#F5F5F5', fontSize: 15 }}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {to}
+                </Text>
+              </Pressable>
+            ) : (
+              <TextInput
+                style={[customerStyles.input, { flex: 1 }]}
+                placeholder="Where to?"
+                placeholderTextColor="#888"
+                value={to}
+                onChangeText={handleToChange}
+                editable={status === 'Not submitted'}
+              />
+            )}
+
+            <Pressable
+              onPress={() => {
+                setTo('');
                 setToLocation(null);
+                setToSuggestions([]);
+                ++toSearchRequest.current;
+                if (toSearchTimer.current) {
+                  clearTimeout(toSearchTimer.current);
+                }
+                setSearchingTo(false);                
               }}
-              editable={status === 'Not submitted'}
-            />
+              disabled={status !== 'Not submitted' || to.length === 0}
+              accessibilityLabel="Clear destination"
+            >
+              <MaterialCommunityIcons
+                name="close-circle"
+                size={20}
+                color={to.length > 0 ? '#B8BCC4' : '#555B66'}
+              />
+            </Pressable>
 
             <Pressable
               onPress={() => setLocationPickerFor('to')}
@@ -683,6 +932,36 @@ export default function RenterScreen() {
               />
             </Pressable>
           </View>
+          {toSuggestions.length > 0 && status === 'Not submitted' && (
+            <View style={{
+              marginTop: 6,
+              backgroundColor: '#303641',
+              borderRadius: 10,
+              overflow: 'hidden',
+            }}>
+              {toSuggestions.map((item) => (
+                <Pressable
+                  key={item.mapbox_id}
+                  onPress={() => chooseToSuggestion(item)}
+                  style={{
+                    paddingVertical: 12,
+                    paddingHorizontal: 14,
+                    borderBottomWidth: 1,
+                    borderBottomColor: '#454C58',
+                  }}
+                >
+                  <Text style={{ color: '#F5F5F5', fontSize: 15 }}>
+                    {item.name}
+                  </Text>
+                  {item.place_formatted ? (
+                    <Text style={{ color: '#B8BCC4', fontSize: 13, marginTop: 3 }}>
+                      {item.place_formatted}
+                    </Text>
+                  ) : null}
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Cargo */}
