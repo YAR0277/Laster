@@ -2,9 +2,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { File } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -18,22 +17,15 @@ import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import { styles as commonStyles } from '../../components/common';
 import { styles as customerStyles } from '../../components/customer';
-import LocationPicker, {
-  type SelectedLocation,
-} from '../../components/LocationPicker';
 import { useAuth } from '../../data/auth';
 import { useCustomer } from '../../data/customer';
 import { Trip, useTrip } from '../../data/trip';
-import {
-  createSessionToken,
-  retrieveLocation,
-  searchLocations,
-  type SearchResult
-} from '../../lib/locationSearch';
+import { nativeLocationProvider } from '../../lib/location/nativeLocationProvider';
+import { osmMappingProvider } from '../../lib/location/osmMappingProvider';
+import type { Coordinates } from '../../lib/location/types';
 import { supabase } from '../../lib/supabase';
 
 export default function RenterScreen() {
-  const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [cargo, setCargo] = useState('');
   const [cargoPhoto, setCargoPhoto] = useState<string | null>(null);
@@ -41,186 +33,84 @@ export default function RenterScreen() {
   const [phone, setPhone] = useState('');
   const [payment, setPayment] = useState('');
   const [currentTripID, setCurrentTripID] = useState<string | null>(null);
+
   const { trips, setTrips } = useTrip();
   const { customer } = useCustomer();
   const { user: supabaseAuthUser } = useAuth();
+
   const [rating, setRating] = useState<number | null>(null);
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
-  const [locationPickerFor, setLocationPickerFor] = useState<'from' | 'to' | null>(null);
-  const [fromLocation, setFromLocation] = useState<SelectedLocation | null>(null);
-  const [toLocation, setToLocation] = useState<SelectedLocation | null>(null);
-  const [fromSuggestions, setFromSuggestions] = useState<SearchResult[]>([]);
-  const [toSuggestions, setToSuggestions] = useState<SearchResult[]>([]);
-  const [searchingFrom, setSearchingFrom] = useState(false);
-  const [searchingTo, setSearchingTo] = useState(false);
-  const fromSessionToken = useRef(createSessionToken());
-  const toSessionToken = useRef(createSessionToken());
-  const fromSearchRequest = useRef(0);
-  const toSearchRequest = useRef(0);  const [routeDistance, setRouteDistance] = useState<number | null>(null);
-  const fromSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const toSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);  
-  const [routeFare, setRouteFare] = useState<number | null>(null);
-  const [calculatingRoute, setCalculatingRoute] = useState(false);
-  const [routeError, setRouteError] = useState<string | null>(null);
+
+  const [originLocation, setOriginLocation] =
+    useState<Coordinates | null>(null);
+
+  const [toLocation, setToLocation] =
+    useState<Coordinates | null>(null);
+
+  const [resolvingDestination, setResolvingDestination] = useState(false);
+
   const [requestingTrip, setRequestingTrip] = useState(false);
   const [completingTrip, setCompletingTrip] = useState(false);
   const [abortingTrip, setAbortingTrip] = useState(false);
-  const METERS_PER_MILE = 1609.344;
+
+  const [routeDistance, setRouteDistance] = useState<number | null>(null);
+  const [routeFare, setRouteFare] = useState<number | null>(null);
+  const [calculatingRoute, setCalculatingRoute] = useState(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    if (!originLocation || !toLocation) {
+      setCalculatingRoute(false);
+      setRouteDistance(null);
+      setRouteFare(null);
+      setRouteError(null);
+      return;
+    }
 
-    const setCurrentLocation = async () => {
-
-      if (!supabaseAuthUser || !customer) {
-        return;
-      }
-
-      // Only set the default when the From field is empty.
-      if (from.trim() !== '' || fromLocation !== null) {
-        return;
-      }
-
-      try {
-        const { status } =
-          await Location.requestForegroundPermissionsAsync();
-
-        if (status !== 'granted') {
-          return;
-        }
-
-        const position = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-
-        if (cancelled) {
-          return;
-        }
-
-        const { latitude, longitude } = position.coords;
-
-        const results = await Location.reverseGeocodeAsync({
-          latitude,
-          longitude,
-        });
-
-        if (cancelled) {
-          return;
-        }
-
-        const place = results[0];
-
-        if (!place) {
-          return;
-        }
-
-        const address = [
-          place.streetNumber,
-          place.street,
-          place.city,
-          place.region,
-          place.postalCode,
-          place.country,
-        ]
-          .filter(Boolean)
-          .join(', ');
-
-        if (!address) {
-          return;
-        }
-
-        setFrom(address);
-        setFromLocation({
-          latitude,
-          longitude,
-          address,
-        });
-
-      } catch (error) {
-        console.warn('Could not set current location:', error);
-      }
-    };
-
-    void setCurrentLocation();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [from, fromLocation, supabaseAuthUser, customer]);
-
-  useEffect(() => {
     let cancelled = false;
 
     const calculateRoute = async () => {
+      setCalculatingRoute(true);
       setRouteDistance(null);
       setRouteFare(null);
       setRouteError(null);
 
-      if (!fromLocation || !toLocation) {
-        setCalculatingRoute(false);
-        return;
-      }
-
-      const token = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
-
-      if (!token) {
-        setRouteError('Mapbox access token is missing.');
-        setCalculatingRoute(false);
-        return;
-      }
-
-      setCalculatingRoute(true);
-
       try {
-        const coordinates =
-          `${fromLocation.longitude},${fromLocation.latitude};` +
-          `${toLocation.longitude},${toLocation.latitude}`;
+        // Calculate driving distance.
+        const route = await osmMappingProvider.calcRouteDistance(
+          originLocation,
+          toLocation
+        );
 
-        const url =
-          `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinates}` +
-          `?overview=false&access_token=${token}`;
+        if (cancelled) return;
 
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          throw new Error('Could not calculate driving distance.');
+        if (!route) {
+          setRouteError('Route not found.');
+          return;
         }
 
-        const data = await response.json();
+        const miles = route.distanceMeters / 1609.344;
+        setRouteDistance(miles);
 
-        if (!data.routes?.length) {
-          throw new Error('No driving route was found.');
+        // Calculate estimated fare.
+        const { data: fareResult, error: fareError } =
+          await supabase.functions.invoke('calculate-fare', {
+            body: { miles },
+          });
+
+        if (cancelled) return;
+
+        if (fareError || typeof fareResult?.fare !== 'number') {
+          throw new Error('Fare calculation failed.');
         }
 
-        // Mapbox returns distance in meters.
-        const miles = data.routes[0].distance / METERS_PER_MILE;
+        setRouteFare(fareResult.fare);
 
-        let fare: number;
-
-        if (miles <= 5) {
-          fare = 40;
-        } else if (miles <= 20) {
-          fare = 40 + (miles - 5) * 2.50;
-        } else if (miles <= 40) {
-          fare = 77.50 + (miles - 20) * 1.25;
-        } else {
-          fare = 102.50 + (miles - 40) * 1.00;
-        }
-
-        // Round fare to the nearest cent.
-        fare = Math.round(fare * 100) / 100;
-
-        if (!cancelled) {
-          setRouteDistance(miles);
-          setRouteFare(fare);
-        }
       } catch (error) {
+        console.error('Route or fare calculation failed:', error);
+
         if (!cancelled) {
-          setRouteError(
-            error instanceof Error
-              ? error.message
-              : 'Unable to calculate the route.',
-          );
+          setRouteError('Unable to calculate the route or fare.');
         }
       } finally {
         if (!cancelled) {
@@ -229,12 +119,44 @@ export default function RenterScreen() {
       }
     };
 
-    void calculateRoute();
+    calculateRoute();
 
     return () => {
       cancelled = true;
     };
-  }, [fromLocation, toLocation]);
+  }, [originLocation, toLocation]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const getOriginLocation = async () => {
+      if (!supabaseAuthUser || !customer) return;
+
+      try {
+        const coordinates =
+          await nativeLocationProvider.getCurrentLocationLatLon();
+
+        if (!cancelled) {
+          setOriginLocation(coordinates);
+        }
+      } catch (error) {
+        console.warn('Could not get current location:', error);
+
+        if (!cancelled) {
+          Alert.alert(
+            'Location Required',
+            'Please allow Laster to access your location to request a pickup.'
+          );
+        }
+      }
+    };
+
+    void getOriginLocation();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [supabaseAuthUser, customer]);
 
   useEffect(() => {
     const loadCurrentTripID = async () => {
@@ -259,15 +181,12 @@ export default function RenterScreen() {
       return;
     }
 
-    setFrom(currentTrip.from);
     setTo(currentTrip.to);
     setCargo(currentTrip.cargo);
     setCargoPhoto(currentTrip.cargoPhoto || null);    
     setFirstName(currentTrip.customerFirstName);
     setPhone(currentTrip.phone);
     setPayment(currentTrip.payment);
-    setRouteDistance(currentTrip.distance); 
-    setRouteFare(currentTrip.fare);    
   }, [currentTrip]);
 
   useEffect(() => {
@@ -284,139 +203,41 @@ export default function RenterScreen() {
     }    
   }, [customer, currentTrip]);  
 
-  const handleFromChange = (text: string) => {
-    setFrom(text);
-    setFromLocation(null);
-    setFromSuggestions([]);
+  const resolveDestination = async (): Promise<Coordinates | null> => {
+    const address = to.trim();
 
-    if (fromSearchTimer.current) {
-      clearTimeout(fromSearchTimer.current);
+    if (!address) {
+      Alert.alert('Destination Required', 'Please enter a destination.');
+      return null;
     }
 
-    const requestId = ++fromSearchRequest.current;
-
-    if (text.trim().length < 2) {
-      setSearchingFrom(false);
-      return;
-    }
-
-    setSearchingFrom(true);
-
-    fromSearchTimer.current = setTimeout(async () => {
-      try {
-        const results = await searchLocations(
-          text,
-          fromSessionToken.current
-        );
-
-        if (requestId === fromSearchRequest.current) {
-          setFromSuggestions(results);
-        }
-      } catch (error) {
-        console.warn('From location search failed:', error);
-      } finally {
-        if (requestId === fromSearchRequest.current) {
-          setSearchingFrom(false);
-        }
-      }
-    }, 300);
-  };
-
-  const handleToChange = (text: string) => {
-    setTo(text);
-    setToLocation(null);
-    setToSuggestions([]);
-
-    if (toSearchTimer.current) {
-      clearTimeout(toSearchTimer.current);
-    }
-
-    const requestId = ++toSearchRequest.current;
-
-    if (text.trim().length < 2) {
-      setSearchingTo(false);
-      return;
-    }
-
-    setSearchingTo(true);
-
-    toSearchTimer.current = setTimeout(async () => {
-      try {
-        const results = await searchLocations(
-          text,
-          toSessionToken.current
-        );
-
-        if (requestId === toSearchRequest.current) {
-          setToSuggestions(results);
-        }
-      } catch (error) {
-        console.warn('To location search failed:', error);
-      } finally {
-        if (requestId === toSearchRequest.current) {
-          setSearchingTo(false);
-        }
-      }
-    }, 300);
-  };
-
-  const chooseFromSuggestion = async (item: SearchResult) => {
-    const requestId = ++fromSearchRequest.current;
-
-    if (fromSearchTimer.current) {
-      clearTimeout(fromSearchTimer.current);
-    }
-
-    setSearchingFrom(true);
+    setResolvingDestination(true);
 
     try {
-      const location = await retrieveLocation(
-        item,
-        fromSessionToken.current
-      );
-
-      if (requestId !== fromSearchRequest.current) return;
-
-      setFrom(location.address);
-      setFromLocation(location);
-      setFromSuggestions([]);
-      fromSessionToken.current = createSessionToken();
-    } catch (error) {
-      console.warn('Could not select starting location:', error);
-    } finally {
-      if (requestId === fromSearchRequest.current) {
-        setSearchingFrom(false);
+      const result = await osmMappingProvider.doGeocode(address);
+            
+      if (!result) {
+        Alert.alert(
+          'Destination Not Found',
+          'Please check the address and try again.'
+        );
+        return null;
       }
-    }
-  };
 
-  const chooseToSuggestion = async (item: SearchResult) => {
-    const requestId = ++toSearchRequest.current;
+      setTo(result.formattedAddress);
+      setToLocation(result.coordinates);
 
-    if (toSearchTimer.current) {
-      clearTimeout(toSearchTimer.current);
-    }
-
-    setSearchingTo(true);
-
-    try {
-      const location = await retrieveLocation(
-        item,
-        toSessionToken.current
-      );
-
-      if (requestId !== toSearchRequest.current) return;
-
-      setTo(location.address);
-      setToLocation(location);
-      setToSuggestions([]);
-      toSessionToken.current = createSessionToken();
+      return result.coordinates;
     } catch (error) {
-      console.warn('Could not select destination:', error);
+      console.warn('Destination lookup failed:', error);
+
+      Alert.alert(
+        'Location Error',
+        'Could not look up the destination. Please try again.'
+      );
+      return null;
     } finally {
-      if (requestId === toSearchRequest.current) {
-        setSearchingTo(false);
-      }
+      setResolvingDestination(false);
     }
   };
 
@@ -437,7 +258,6 @@ export default function RenterScreen() {
   const router = useRouter();
 
   const requestTrip = async () => {
-
     if (requestingTrip) return;
 
     if (!supabaseAuthUser || !customer) {
@@ -456,26 +276,43 @@ export default function RenterScreen() {
     }
 
     // Required rental information
-    if (!from || !to || !cargo || !firstName || !phone || !payment) {
+    if (!to.trim() || !cargo || !firstName || !phone || !payment) {
       Alert.alert(
         'Missing Information',
-        'Please enter your From address, To address, Cargo, First Name, Phone, and Payment information.'
+        'Please enter a destination, Cargo, First Name, Phone, and Payment information.'
       );
       return;
     }
 
-    // Verify that the route and fare have been calculated.
-    if (routeDistance === null || routeFare === null) {
+    if (!originLocation) {
       Alert.alert(
-        'Route Not Ready',
-        'Please select both locations and wait for the distance and fare to be calculated.',
+        'Location Required',
+        'Laster needs your current location to request a pickup.'
+      );
+      return;
+    }
+
+    if (!toLocation) {
+      Alert.alert(
+        'Destination Not Located',
+        'Please search for and select a valid destination first.'
       );
       return;
     }
 
     setRequestingTrip(true);
 
-    try {    
+    try {
+      const destinationCoordinates = toLocation;
+
+      // Verify that the route and fare have been calculated.
+      if (routeDistance === null || routeFare === null) {
+        Alert.alert(
+          'Route Not Ready',
+          'Please select both locations and wait for the distance and fare to be calculated.',
+        );
+        return;
+      }
 
       let cargoPhotoUrl = '';
 
@@ -511,17 +348,17 @@ export default function RenterScreen() {
         'request-trip',
         {
           body: {
-            from,
+            from: 'Current location',
             to,
             cargo,
             cargoPhoto: cargoPhotoUrl,
             firstName,
             phone,
             payment,
-            fromLatitude: fromLocation?.latitude,
-            fromLongitude: fromLocation?.longitude,
-            toLatitude: toLocation?.latitude,
-            toLongitude: toLocation?.longitude,
+            fromLatitude: originLocation.latitude,
+            fromLongitude: originLocation.longitude,
+            toLatitude: destinationCoordinates.latitude,
+            toLongitude: destinationCoordinates.longitude,
           },
         },
       );
@@ -571,6 +408,7 @@ export default function RenterScreen() {
       ]);
 
       setCurrentTripID(newTrip.tripID);
+      setRouteFare(Number(newTrip.fare));
 
       await AsyncStorage.setItem(
         'laster_current_trip_id',
@@ -674,9 +512,6 @@ export default function RenterScreen() {
     setCargoPhoto(null);
     setRating(null);
     setRatingSubmitted(false);
-    setRouteDistance(null);
-    setRouteFare(null);
-    setRouteError(null);
   };
 
   const submitRating = async () => {
@@ -760,108 +595,6 @@ export default function RenterScreen() {
 
         <Text style={customerStyles.sectionTitle}>Trip Details</Text>
 
-        {/* From */}
-        <View style={[customerStyles.inputGroup, { marginBottom: 20 }]}>
-          <View style={customerStyles.fieldHeader}>
-            <MaterialCommunityIcons
-              name="map-marker-outline"
-              size={22}
-              color="#B8BCC4"
-            />
-            <Text style={customerStyles.fieldLabel}>From</Text>
-          </View>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            {fromLocation ? (
-              <Pressable
-                style={[customerStyles.input, { flex: 1, justifyContent: 'center' }]}
-                onPress={() => setFromLocation(null)}
-                disabled={status !== 'Not submitted'}
-              >
-                <Text
-                  style={{ color: '#F5F5F5', fontSize: 15 }}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {from}
-                </Text>
-              </Pressable>
-            ) : (
-              <TextInput
-                style={[customerStyles.input, { flex: 1 }]}
-                placeholder="Where from?"
-                placeholderTextColor="#888"
-                value={from}
-                onChangeText={handleFromChange}
-                editable={status === 'Not submitted'}
-              />
-            )}
-
-            <Pressable
-              onPress={() => {
-                setFrom('');
-                setFromLocation(null);
-                setFromSuggestions([]);
-                ++fromSearchRequest.current;
-                if (fromSearchTimer.current) {
-                  clearTimeout(fromSearchTimer.current);
-                }
-                setSearchingFrom(false);                
-              }}
-              disabled={status !== 'Not submitted' || from.length === 0}
-              accessibilityLabel="Clear starting location"
-            >
-              <MaterialCommunityIcons
-                name="close-circle"
-                size={20}
-                color={from.length > 0 ? '#B8BCC4' : '#555B66'}
-              />
-            </Pressable>
-
-            <Pressable
-              onPress={() => setLocationPickerFor('from')}
-              disabled={status !== 'Not submitted'}
-              accessibilityLabel="Choose starting location on map"
-            >
-              <MaterialCommunityIcons
-                name="map-search-outline"
-                size={26}
-                color="#B8BCC4"
-              />
-            </Pressable>
-          </View>
-          {fromSuggestions.length > 0 && status === 'Not submitted' && (
-            <View style={{
-              marginTop: 6,
-              backgroundColor: '#303641',
-              borderRadius: 10,
-              overflow: 'hidden',
-            }}>
-              {fromSuggestions.map((item) => (
-                <Pressable
-                  key={item.mapbox_id}
-                  onPress={() => chooseFromSuggestion(item)}
-                  style={{
-                    paddingVertical: 12,
-                    paddingHorizontal: 14,
-                    borderBottomWidth: 1,
-                    borderBottomColor: '#454C58',
-                  }}
-                >
-                  <Text style={{ color: '#F5F5F5', fontSize: 15 }}>
-                    {item.name}
-                  </Text>
-                  {item.place_formatted ? (
-                    <Text style={{ color: '#B8BCC4', fontSize: 13, marginTop: 3 }}>
-                      {item.place_formatted}
-                    </Text>
-                  ) : null}
-                </Pressable>
-              ))}
-            </View>
-          )}
-        </View>
-
         {/* To */}
         <View style={[customerStyles.inputGroup, { marginBottom: 20 }]}>
           <View style={customerStyles.fieldHeader}>
@@ -873,29 +606,29 @@ export default function RenterScreen() {
             <Text style={customerStyles.fieldLabel}>To</Text>
           </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 1 }}>
             {toLocation ? (
-              <Pressable
-                style={[customerStyles.input, { flex: 1, justifyContent: 'center' }]}
-                onPress={() => setToLocation(null)}
-                disabled={status !== 'Not submitted'}
+              <Text
+                style={[
+                  customerStyles.input,
+                  { flex: 1, textAlignVertical: 'center' },
+                ]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
               >
-                <Text
-                  style={{ color: '#F5F5F5', fontSize: 15 }}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {to}
-                </Text>
-              </Pressable>
+                {to}
+              </Text>
             ) : (
               <TextInput
                 style={[customerStyles.input, { flex: 1 }]}
                 placeholder="Where to?"
                 placeholderTextColor="#888"
                 value={to}
-                onChangeText={handleToChange}
-                editable={status === 'Not submitted'}
+                onChangeText={(text) => {
+                  setTo(text);
+                  setToLocation(null);
+                }}
+                editable={status === 'Not submitted' && !resolvingDestination}
               />
             )}
 
@@ -903,64 +636,46 @@ export default function RenterScreen() {
               onPress={() => {
                 setTo('');
                 setToLocation(null);
-                setToSuggestions([]);
-                ++toSearchRequest.current;
-                if (toSearchTimer.current) {
-                  clearTimeout(toSearchTimer.current);
-                }
-                setSearchingTo(false);                
               }}
-              disabled={status !== 'Not submitted' || to.length === 0}
-              accessibilityLabel="Clear destination"
+              disabled={!to || resolvingDestination}
+              style={{ padding: 2 }}
             >
               <MaterialCommunityIcons
-                name="close-circle"
-                size={20}
-                color={to.length > 0 ? '#B8BCC4' : '#555B66'}
+                name="close"
+                size={22}
+                color="#B8BCC4"
               />
             </Pressable>
 
             <Pressable
-              onPress={() => setLocationPickerFor('to')}
-              disabled={status !== 'Not submitted'}
-              accessibilityLabel="Choose destination on map"
+              onPress={() => {
+                resolveDestination();
+              }}
+              disabled={!to.trim() || resolvingDestination || status !== 'Not submitted'}
+              style={{ padding: 8 }}
             >
               <MaterialCommunityIcons
-                name="map-search-outline"
-                size={26}
+                name="magnify"
+                size={24}
                 color="#B8BCC4"
               />
             </Pressable>
           </View>
-          {toSuggestions.length > 0 && status === 'Not submitted' && (
-            <View style={{
-              marginTop: 6,
-              backgroundColor: '#303641',
-              borderRadius: 10,
-              overflow: 'hidden',
-            }}>
-              {toSuggestions.map((item) => (
-                <Pressable
-                  key={item.mapbox_id}
-                  onPress={() => chooseToSuggestion(item)}
-                  style={{
-                    paddingVertical: 12,
-                    paddingHorizontal: 14,
-                    borderBottomWidth: 1,
-                    borderBottomColor: '#454C58',
-                  }}
-                >
-                  <Text style={{ color: '#F5F5F5', fontSize: 15 }}>
-                    {item.name}
-                  </Text>
-                  {item.place_formatted ? (
-                    <Text style={{ color: '#B8BCC4', fontSize: 13, marginTop: 3 }}>
-                      {item.place_formatted}
-                    </Text>
-                  ) : null}
-                </Pressable>
-              ))}
-            </View>
+
+          {resolvingDestination && (
+            <Text style={{ color: '#B8BCC4', marginTop: 6 }}>
+              Searching...
+            </Text>
+          )}
+
+          {toLocation && (
+            <Text
+              style={{ color: '#8BCFAE', marginTop: 5 }}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              Destination located.
+            </Text>
           )}
         </View>
 
@@ -1067,15 +782,9 @@ export default function RenterScreen() {
         <View style={customerStyles.infoRow}>
           <View style={customerStyles.infoContent}>
             <Text style={customerStyles.infoLabel}>FARE</Text>
-            <Text style={customerStyles.infoValue}>
-              {routeFare !== null
-                ? `$${routeFare.toFixed(2)}`
-                : calculatingRoute
-                  ? 'Calculating...'
-                  : routeError
-                    ? 'Unable to calculate'
-                    : '—'}
-            </Text>
+              <Text style={customerStyles.infoValue}>
+                {routeFare === null ? '-' : `$${routeFare.toFixed(2)}`}
+              </Text>
           </View>
         </View>
 
@@ -1083,13 +792,13 @@ export default function RenterScreen() {
         <View style={customerStyles.infoRow}>
           <View style={customerStyles.infoContent}>
             <Text style={customerStyles.infoLabel}>DISTANCE</Text>
-            <Text style={customerStyles.infoValue}>
-              {routeDistance !== null
-                ? `${routeDistance.toFixed(1)} mi`
-                : calculatingRoute
+              <Text style={customerStyles.infoValue}>
+                {calculatingRoute
                   ? 'Calculating...'
-                  : '—'}
-            </Text>
+                  : routeDistance === null
+                    ? '-'
+                    : `${routeDistance.toFixed(1)} mi`}
+              </Text>
           </View>
         </View>
 
@@ -1173,13 +882,17 @@ export default function RenterScreen() {
           <Pressable
             style={[
               customerStyles.button,
-              requestingTrip && { opacity: 0.6 },
+              (requestingTrip || resolvingDestination) && { opacity: 0.6 },
             ]}
             onPress={requestTrip}
-            disabled={requestingTrip}
+            disabled={requestingTrip || resolvingDestination}
           >
             <Text style={customerStyles.buttonText}>
-              {requestingTrip ? 'Requesting Trip...' : 'Request Trip'}
+              {resolvingDestination
+                ? 'Locating Destination...'
+                : requestingTrip
+                  ? 'Requesting Trip...'
+                  : 'Request Trip'}
             </Text>
 
             <MaterialCommunityIcons
@@ -1188,7 +901,7 @@ export default function RenterScreen() {
               color="#FFFFFF"
             />
           </Pressable>
-        )}
+        )}        
 
         {/* Accepted */}
         {status === 'Accepted' && (
@@ -1374,29 +1087,6 @@ export default function RenterScreen() {
 
         </View>
       )}
-
-      {/* Other page content */}
-      <LocationPicker
-        visible={locationPickerFor !== null}
-        title={
-          locationPickerFor === 'from'
-            ? 'Choose Starting Location'
-            : 'Choose Destination'
-        }
-        onCancel={() => setLocationPickerFor(null)}
-        onSelect={(location: SelectedLocation) => {
-          if (locationPickerFor === 'from') {
-            setFrom(location.address);
-            setFromLocation(location);
-          } else if (locationPickerFor === 'to') {
-            setTo(location.address);
-            setToLocation(location);
-          }
-
-          setLocationPickerFor(null);
-        }}
-      />
-
     </ScrollView>
   );
 }

@@ -1,4 +1,5 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { calculateFare } from '../common/fare.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,15 +14,6 @@ function jsonResponse(body: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
-}
-
-function calculateFare(miles: number): number {
-  let fare: number;
-  if (miles <= 5) fare = 40;
-  else if (miles <= 20) fare = 40 + (miles - 5) * 2.5;
-  else if (miles <= 40) fare = 77.5 + (miles - 20) * 1.25;
-  else fare = 102.5 + (miles - 40);
-  return Math.round(fare * 100) / 100;
 }
 
 function validCoordinates(

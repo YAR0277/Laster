@@ -15,12 +15,20 @@ export type SearchResult = {
 const MAPBOX_TOKEN =
   process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
+  console.log(
+  'Mapbox token loaded:',
+  !!MAPBOX_TOKEN,
+  'length:',
+  MAPBOX_TOKEN?.length
+);
+
 export const createSessionToken = () =>
   `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 export const searchLocations = async (
   text: string,
-  sessionToken: string
+  sessionToken: string,
+  proximity?: { latitude: number; longitude: number }
 ): Promise<SearchResult[]> => {
   const searchText = text.trim();
 
@@ -35,7 +43,7 @@ export const searchLocations = async (
   const params = new URLSearchParams({
     q: searchText,
     session_token: sessionToken,
-    proximity: '-73.990593,40.740121',
+    ...(proximity && {proximity: `${proximity.longitude},${proximity.latitude}`,}),
     access_token: MAPBOX_TOKEN,
   });
 
@@ -44,9 +52,11 @@ export const searchLocations = async (
 
   const response = await fetch(url);
 
-  if (!response.ok) {
-    throw new Error(`Mapbox request failed (${response.status}).`);
-  }
+if (!response.ok) {
+  const details = await response.text();
+  console.warn('Mapbox suggest response:', details);
+  throw new Error(`Mapbox request failed (${response.status}).`);
+}
 
   const data = await response.json();
 
@@ -72,9 +82,11 @@ export const retrieveLocation = async (
 
   const response = await fetch(url);
 
-  if (!response.ok) {
-    throw new Error(`Could not retrieve location (${response.status}).`);
-  }
+if (!response.ok) {
+  const details = await response.text();
+  console.warn('Mapbox retrieve response:', details);
+  throw new Error(`Mapbox request failed (${response.status}).`);
+}
 
   const data = await response.json();
   const feature = data.features?.[0];
