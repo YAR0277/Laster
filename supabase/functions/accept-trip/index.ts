@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
 
     const { data: driver, error: driverError } = await admin
       .from('drivers')
-      .select('driver_id, stripe_account_id, is_available')
+      .select('driver_id, stripe_account_id')
       .eq('driver_id', user.id)
       .maybeSingle();
 
@@ -122,13 +122,6 @@ Deno.serve(async (req) => {
       return jsonResponse(
         { error: 'A Laster driver account is required.' },
         403,
-      );
-    }
-
-    if (!driver.is_available) {
-      return jsonResponse(
-        { error: 'Turn on availability before accepting a trip.' },
-        409,
       );
     }
 
@@ -224,13 +217,6 @@ Deno.serve(async (req) => {
       if (message.includes('PAYMENT_NOT_AUTHORIZED')) {
         return jsonResponse(
           { error: 'This trip does not have an authorized payment.' },
-          409,
-        );
-      }
-
-      if (message.includes('DRIVER_NOT_AVAILABLE')) {
-        return jsonResponse(
-          { error: 'Turn on availability before accepting a trip.' },
           409,
         );
       }

@@ -84,10 +84,9 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const mapboxToken = Deno.env.get('MAPBOX_ACCESS_TOKEN');
     const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
 
-    if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey || !mapboxToken || !stripeSecretKey) {
+    if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey || !stripeSecretKey) {
       console.error('A required server environment variable is missing.');
       return jsonResponse({ error: 'The trip or payment service is not configured.' }, 500);
     }
@@ -149,21 +148,37 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Please save a payment card before requesting a trip.' }, 409);
     }
 
-    const coordinates = `${fromLongitude},${fromLatitude};${toLongitude},${toLatitude}`;
-    const mapboxUrl =
-      `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinates}` +
-      `?overview=false&access_token=${encodeURIComponent(mapboxToken)}`;
-    const routeResponse = await fetch(mapboxUrl);
+    // Calculate the authoritative driving distance using OSRM.
+    const coordinates =
+      `${fromLongitude},${fromLatitude};${toLongitude},${toLatitude}`;
+
+    const osrmUrl =
+      `https://router.project-osrm.org/route/v1/driving/${coordinates}` +
+      '?overview=false&steps=false';
+
+    const routeResponse = await fetch(osrmUrl);
 
     if (!routeResponse.ok) {
-      console.error('Mapbox route request failed:', routeResponse.status);
-      return jsonResponse({ error: 'Could not calculate the driving route.' }, 502);
+      console.error('OSRM route request failed:', routeResponse.status);
+      return jsonResponse(
+        { error: 'Could not calculate the driving route.' },
+        502,
+      );
     }
 
     const routeData = await routeResponse.json();
     const route = routeData.routes?.[0];
-    if (!route || typeof route.distance !== 'number' || !Number.isFinite(route.distance)) {
-      return jsonResponse({ error: 'No valid driving route was found.' }, 400);
+
+    if (
+      routeData.code !== 'Ok' ||
+      !route ||
+      typeof route.distance !== 'number' ||
+      !Number.isFinite(route.distance)
+    ) {
+      return jsonResponse(
+        { error: 'No valid driving route was found.' },
+        400,
+      );
     }
 
     const miles = route.distance / 1609.344;
@@ -285,8 +300,9 @@ Deno.serve(async (req) => {
       .eq('payment_status', 'not_started')
       .select(
         'trip_id, customer_id, driver_id, customer_first_name, driver_first_name, ' +
-        'truck, truck_photo, from_location, to_location, cargo, cargo_photo, phone, ' +
-        'payment, distance, distance_to_arrival, fare, payout, status, requested_at, completed_at',
+        'truck, truck_photo, from_location, to_location, trip_to_lat, trip_to_lon, ' +
+        'cargo, cargo_photo, phone, payment, distance, distance_to_arrival, ' +
+        'fare, payout, status, requested_at, completed_at',
       )
       .single();
 

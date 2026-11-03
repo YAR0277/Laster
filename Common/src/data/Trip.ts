@@ -22,6 +22,8 @@ export type Trip = {
   truckPhoto: string;
   from: string;
   to: string;
+  toLatitude: number | null;
+  toLongitude: number | null;
   cargo: string;
   cargoPhoto: string;
   phone: string;
@@ -48,6 +50,8 @@ export type TripRow = {
   truck_photo: string;
   from_location: string;
   to_location: string;
+  trip_to_lat: number | null;
+  trip_to_lon: number | null;  
   cargo: string;
   cargo_photo: string;
   phone: string;

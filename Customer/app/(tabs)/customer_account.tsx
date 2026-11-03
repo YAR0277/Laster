@@ -565,6 +565,12 @@ export default function CustomerAccountScreen() {
                 </Text>
 
                 <Text style={accountStyles.tripRoute}>
+                  To: {trip.to
+                    ? `${trip.to.slice(0, 20)}${trip.to.length > 20 ? '...' : ''}`
+                    : '...'}
+                </Text>
+
+                <Text style={accountStyles.tripRoute}>
                   Status: {trip.status}
                 </Text>
 

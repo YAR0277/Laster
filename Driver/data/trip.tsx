@@ -51,7 +51,12 @@ export function TripProvider({ children }: { children: ReactNode }) {
     const { data, error } = await query;
 
     if (error) {
-      console.error('Trip load error:', error.message);
+      console.error('Trip load error:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      });
       return;
     }
 

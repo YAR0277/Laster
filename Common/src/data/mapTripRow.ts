@@ -12,6 +12,8 @@ export function mapTripRow(row: TripRow): Trip {
     truckPhoto: row.truck_photo,
     from: row.from_location,
     to: row.to_location,
+    toLatitude: row.trip_to_lat,
+    toLongitude: row.trip_to_lon,    
     cargo: row.cargo,
     cargoPhoto: row.cargo_photo,
     phone: row.phone,

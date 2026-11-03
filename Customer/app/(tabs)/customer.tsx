@@ -61,8 +61,6 @@ export default function RenterScreen() {
   useEffect(() => {
     if (!originLocation || !toLocation) {
       setCalculatingRoute(false);
-      setRouteDistance(null);
-      setRouteFare(null);
       setRouteError(null);
       return;
     }
@@ -182,11 +180,22 @@ export default function RenterScreen() {
     }
 
     setTo(currentTrip.to);
+    setToLocation(
+      currentTrip.toLatitude != null &&
+      currentTrip.toLongitude != null
+        ? {
+            latitude: currentTrip.toLatitude,
+            longitude: currentTrip.toLongitude,
+          }
+        : null
+    );    
     setCargo(currentTrip.cargo);
     setCargoPhoto(currentTrip.cargoPhoto || null);    
     setFirstName(currentTrip.customerFirstName);
     setPhone(currentTrip.phone);
     setPayment(currentTrip.payment);
+    setRouteDistance(currentTrip.distance ?? null);
+    setRouteFare(currentTrip.fare ?? null);    
   }, [currentTrip]);
 
   useEffect(() => {
@@ -386,6 +395,8 @@ export default function RenterScreen() {
         truckPhoto: savedTrip.truck_photo,
         from: savedTrip.from_location,
         to: savedTrip.to_location,
+        toLatitude: savedTrip.trip_to_lat,
+        toLongitude: savedTrip.trip_to_lon,        
         cargo: savedTrip.cargo,
         cargoPhoto: savedTrip.cargo_photo,
         phone: savedTrip.phone,
@@ -508,6 +519,8 @@ export default function RenterScreen() {
     // details for the next trip. Only clear trip-specific destination/cargo data.
     setTo('');
     setToLocation(null);
+    setRouteFare(null);
+    setRouteDistance(null);
     setCargo('');
     setCargoPhoto(null);
     setRating(null);

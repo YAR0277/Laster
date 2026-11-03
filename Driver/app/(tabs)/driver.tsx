@@ -2,12 +2,11 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { formatDisplayTripID } from '@laster/common';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Pressable,
   ScrollView,
-  Switch,
   Text,
   View,
 } from 'react-native';
@@ -23,60 +22,9 @@ export default function DriverScreen() {
   const { trips, setTrips } = useTrip();
   const { driver, loading: driverLoading } = useDriver();
   const router = useRouter();
-  const [available, setAvailable] = useState(false);
-  const [availabilityLoading, setAvailabilityLoading] = useState(true);
-  const [availabilityUpdating, setAvailabilityUpdating] = useState(false);
   const [acceptingTripID, setAcceptingTripID] = useState<string | null>(null);
   const [startingTripID, setStartingTripID] = useState<string | null>(null);
   const [abortingTripID, setAbortingTripID] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (driverLoading) return;
-
-    if (!driver) {
-      setAvailable(false);
-      setAvailabilityLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadAvailability = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('drivers')
-          .select('is_available')
-          .eq('driver_id', driver.driverID)
-          .single();
-
-        if (cancelled) return;
-
-        if (error) {
-          console.error('Load availability error:', error.message);
-          Alert.alert('Error', 'Could not load driver availability.');
-        } else {
-          setAvailable(data.is_available);
-        }
-      } catch (error) {
-        if (cancelled) return;
-
-        console.error('Load availability failed:', error);
-        Alert.alert('Error', 'Could not load driver availability.');
-      } finally {
-        if (!cancelled) {
-          setAvailabilityLoading(false);
-        }
-      }
-    };
-
-    setAvailabilityLoading(true);
-    void loadAvailability();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [driver, driverLoading]);
-
   const hasAccount = !driverLoading && driver !== null;
 
   const hasAcceptedTrip = trips.some(
@@ -84,40 +32,6 @@ export default function DriverScreen() {
       trip.status === 'Accepted' ||
       trip.status === 'Started'
   );
-
-  const handleAvailabilityChange = async (value: boolean) => {
-    if (
-      !driver ||
-      availabilityLoading ||
-      availabilityUpdating
-    ) {
-      return;
-    }
-
-    const previousValue = available;
-
-    setAvailabilityUpdating(true);
-    setAvailable(value);
-
-    try {
-      const { error } = await supabase
-        .from('drivers')
-        .update({ is_available: value })
-        .eq('driver_id', driver.driverID);
-
-      if (error) {
-        setAvailable(previousValue);
-        console.error('Update availability error:', error.message);
-        Alert.alert('Error', 'Could not update driver availability.');
-      }
-    } catch (error) {
-      setAvailable(previousValue);
-      console.error('Update availability failed:', error);
-      Alert.alert('Error', 'Could not update driver availability.');
-    } finally {
-      setAvailabilityUpdating(false);
-    }
-  };
 
   const acceptTrip = async (tripID: string) => {
     if (
@@ -221,16 +135,6 @@ export default function DriverScreen() {
       }
 
       // Calculate driving distance from the driver to the pickup point.
-      const token = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
-
-      if (!token) {
-        Alert.alert(
-          'Trip Error',
-          'Mapbox access token is missing.'
-        );
-        return;
-      }
-
       let arrivalDistance: number;
 
       try {
@@ -239,8 +143,8 @@ export default function DriverScreen() {
           `${tripLocation.trip_from_lon},${tripLocation.trip_from_lat}`;
 
         const url =
-          `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinates}` +
-          `?overview=false&access_token=${token}`;
+          `https://router.project-osrm.org/route/v1/driving/${coordinates}` +
+          '?overview=false&steps=false';
 
         const response = await fetch(url);
 
@@ -249,14 +153,19 @@ export default function DriverScreen() {
         }
 
         const data = await response.json();
+        const route = data.routes?.[0];
 
-        if (!data.routes?.length) {
-          throw new Error('No driving route was found.');
+        if (
+          data.code !== 'Ok' ||
+          !route ||
+          typeof route.distance !== 'number' ||
+          !Number.isFinite(route.distance)
+        ) {
+          throw new Error('No valid driving route was found.');
         }
 
-        // Mapbox returns meters; convert to miles.
-        arrivalDistance =
-          data.routes[0].distance / METERS_PER_MILE;
+        // OSRM returns meters; convert to miles.
+        arrivalDistance = route.distance / METERS_PER_MILE;
       } catch (error) {
         Alert.alert(
           'Arrival Distance Error',
@@ -266,7 +175,7 @@ export default function DriverScreen() {
         );
         return;
       }
-
+      
       // The Edge Function verifies payout readiness and performs
       // the secure, atomic trip acceptance.
       const { data: acceptance, error } =
@@ -307,9 +216,6 @@ export default function DriverScreen() {
         return;
       }
 
-      // The server has also set the database availability to false.
-      setAvailable(false);
-
       // Keep the local UI in sync with the database.
       setTrips((currentTrips) =>
         currentTrips.map((trip) =>
@@ -340,7 +246,7 @@ export default function DriverScreen() {
     } finally {
       setAcceptingTripID(null);
     }
-  };
+  };      
 
   const startTrip = async (tripID: string) => {
     if (!driver || startingTripID !== null) return;
@@ -488,30 +394,6 @@ export default function DriverScreen() {
             />
           </Pressable>
         </View>
-
-        {driverLoading ? null : hasAccount ? (
-          <View style={driverStyles.availabilityRow}>
-            <Text style={driverStyles.availabilityText}>
-              I&apos;m available to receive trips
-            </Text>
-
-            <Switch
-              value={available}
-              onValueChange={handleAvailabilityChange}
-              disabled={
-                !hasAccount ||
-                availabilityLoading ||
-                availabilityUpdating
-              }
-              trackColor={{
-                false: '#6B7280',
-                true: '#F59E0B',
-              }}
-              thumbColor="#F5F5F5"
-              ios_backgroundColor="#6B7280"
-            />
-          </View>
-        ) : null}
       </View>
 
       {/* Trip Cards */}
@@ -583,36 +465,29 @@ export default function DriverScreen() {
               {trip.status}
             </Text>
 
-            {/* Accept Trip */}
-            {trip.status === 'Requested' &&
-              available &&
-              !hasAcceptedTrip && (
-                <Pressable
-                  style={[
-                    driverStyles.acceptButton,
-                    acceptingTripID !== null && { opacity: 0.6 },
-                  ]}
-                  disabled={acceptingTripID !== null}
-                  onPress={() => acceptTrip(trip.tripID)}
-                >
-                  <MaterialCommunityIcons
-                    name="car-pickup"
-                    size={22}
-                    color="#FFFFFF"
-                  />
-                  <Text style={driverStyles.buttonText}>
-                    {acceptingTripID === trip.tripID
-                      ? 'Accepting...'
-                      : 'Accept'}
-                  </Text>
-                </Pressable>
-              )}
-
-            {/* Not Available */}
-            {trip.status === 'Requested' && !available && (
-              <Text style={driverStyles.availabilityMessage}>
-                Turn on availability to accept this trip.
-              </Text>
+          {/* Accept Trip */}
+          {trip.status === 'Requested' &&
+            hasAccount &&
+            !hasAcceptedTrip && (
+              <Pressable
+                style={[
+                  driverStyles.acceptButton,
+                  acceptingTripID !== null && { opacity: 0.6 },
+                ]}
+                disabled={acceptingTripID !== null}
+                onPress={() => acceptTrip(trip.tripID)}
+              >
+                <MaterialCommunityIcons
+                  name="car-pickup"
+                  size={22}
+                  color="#FFFFFF"
+                />
+                <Text style={driverStyles.buttonText}>
+                  {acceptingTripID === trip.tripID
+                    ? 'Accepting...'
+                    : 'Accept'}
+                </Text>
+              </Pressable>
             )}
 
             {/* Start and Abort Trip */}

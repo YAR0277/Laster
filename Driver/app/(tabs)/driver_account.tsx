@@ -939,6 +939,12 @@ export default function DriverAccountScreen() {
                   <Text style={accountStyles.tripRoute}>
                     Status: {trip.status}
                   </Text>
+                  
+                  <Text style={accountStyles.tripRoute}>
+                    From: {trip.from
+                      ? `${trip.from.slice(0, 20)}${trip.from.length > 20 ? '...' : ''}`
+                      : '...'}
+                  </Text>
 
                   {trip.customerFirstName && (
                     <Text style={accountStyles.tripRoute}>
