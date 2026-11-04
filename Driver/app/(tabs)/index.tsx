@@ -3,7 +3,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
-import { styles as commonStyles } from '../../components/common';
+import { styles as commonStyles } from '../../../Common/src/components/common';
 import { styles as indexStyles } from '../../components/index';
 import { useDriver } from '../../data/driver';
 import { useTrip } from '../../data/trip';

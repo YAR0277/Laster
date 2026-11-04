@@ -1,3 +1,4 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { formatDisplayTripID } from '@laster/common';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStripe } from '@stripe/stripe-react-native';
@@ -15,7 +16,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { styles as commonStyles } from '../../components/common';
+import { styles as accountStylesCommon } from '../../../Common/src/components/account';
+import { styles as commonStyles } from '../../../Common/src/components/common';
 import { styles as accountStyles } from '../../components/customer_account';
 import { useAuth } from '../../data/auth';
 import { useCustomer } from '../../data/customer';
@@ -376,10 +378,10 @@ export default function CustomerAccountScreen() {
       contentContainerStyle={commonStyles.contentContainer}
     >
       {/* Page Header */}
-      <View style={accountStyles.pageHeader}>
+      <View style={accountStylesCommon.pageHeader}>
         <View style={accountStyles.pageHeaderContent}>
           <View>
-            <Text style={accountStyles.pageSubtitle}>
+            <Text style={accountStylesCommon.pageSubtitle}>
               Manage your Customer account
             </Text>
           </View>
@@ -388,20 +390,20 @@ export default function CustomerAccountScreen() {
 
       {/* Account Mode */}
       {!hasAccount && (
-        <View style={accountStyles.toggleContainer}>
+        <View style={accountStylesCommon.toggleContainer}>
           <Pressable
             style={[
-              accountStyles.toggleButton,
+              accountStylesCommon.toggleButton,
               accountMode === 'login' &&
-                accountStyles.toggleButtonSelected,
+                accountStylesCommon.toggleButtonSelected,
             ]}
             onPress={() => setAccountMode('login')}
           >
             <Text
               style={[
-                accountStyles.toggleText,
+                accountStylesCommon.toggleText,
                 accountMode === 'login' &&
-                  accountStyles.toggleTextSelected,
+                  accountStylesCommon.toggleTextSelected,
               ]}
             >
               Login
@@ -410,17 +412,17 @@ export default function CustomerAccountScreen() {
 
           <Pressable
             style={[
-              accountStyles.toggleButton,
+              accountStylesCommon.toggleButton,
               accountMode === 'open' &&
-                accountStyles.toggleButtonSelected,
+                accountStylesCommon.toggleButtonSelected,
             ]}
             onPress={() => setAccountMode('open')}
           >
             <Text
               style={[
-                accountStyles.toggleText,
+                accountStylesCommon.toggleText,
                 accountMode === 'open' &&
-                  accountStyles.toggleTextSelected,
+                  accountStylesCommon.toggleTextSelected,
               ]}
             >
               Open Account
@@ -430,12 +432,10 @@ export default function CustomerAccountScreen() {
       )}
 
       {/* Login */}
-      <View style={accountStyles.section}>
-        <Text style={accountStyles.sectionTitle}>Login</Text>
-
-        <Text style={accountStyles.fieldLabel}>Email</Text>
+      <View style={accountStylesCommon.section}>
+        <Text style={accountStylesCommon.fieldLabel}>Email</Text>
         <TextInput
-          style={accountStyles.input}
+          style={accountStylesCommon.input}
           placeholder="Enter email address"
           placeholderTextColor="#888"
           value={email}
@@ -444,9 +444,9 @@ export default function CustomerAccountScreen() {
           autoCapitalize="none"
         />
 
-        <Text style={accountStyles.fieldLabel}>Password</Text>
+        <Text style={accountStylesCommon.fieldLabel}>Password</Text>
         <TextInput
-          style={accountStyles.input}
+          style={accountStylesCommon.input}
           placeholder="Enter password"
           placeholderTextColor="#888"
           value={password}
@@ -458,30 +458,37 @@ export default function CustomerAccountScreen() {
 
       {/* Contact */}
       {(hasAccount || accountMode === 'open') && (
-        <View style={accountStyles.section}>
-          <Text style={accountStyles.sectionTitle}>Contact</Text>
+        <View style={accountStylesCommon.section}>
+          <View style={accountStylesCommon.sectionHeading}>
+            <MaterialCommunityIcons
+              name="account-outline"
+              size={23}
+              color="#D8DCE3"
+            />
+            <Text style={accountStylesCommon.sectionTitle}>Contact</Text>
+          </View>
 
-          <Text style={accountStyles.fieldLabel}>First Name</Text>
+          <Text style={accountStylesCommon.fieldLabel}>First Name</Text>
           <TextInput
-            style={accountStyles.input}
+            style={accountStylesCommon.input}
             placeholder="Enter first name"
             placeholderTextColor="#888"
             value={firstName}
             onChangeText={setFirstName}
           />
 
-          <Text style={accountStyles.fieldLabel}>Last Name</Text>
+          <Text style={accountStylesCommon.fieldLabel}>Last Name</Text>
           <TextInput
-            style={accountStyles.input}
+            style={accountStylesCommon.input}
             placeholder="Enter last name"
             placeholderTextColor="#888"
             value={lastName}
             onChangeText={setLastName}
           />
 
-          <Text style={accountStyles.fieldLabel}>Phone</Text>
+          <Text style={accountStylesCommon.fieldLabel}>Phone</Text>
           <TextInput
-            style={accountStyles.input}
+            style={accountStylesCommon.input}
             placeholder="Enter phone number"
             placeholderTextColor="#888"
             value={phone}
@@ -493,12 +500,12 @@ export default function CustomerAccountScreen() {
 
       {/* Update Account */}
       {hasAccount && (
-        <View style={accountStyles.actions}>
+        <View style={accountStylesCommon.actions}>
           <Pressable
             style={accountStyles.primaryButton}
             onPress={updateAccount}
           >
-            <Text style={accountStyles.buttonText}>
+            <Text style={accountStylesCommon.buttonText}>
               Update Account
             </Text>
           </Pressable>
@@ -507,11 +514,18 @@ export default function CustomerAccountScreen() {
 
       {/* Payment */}
       {(hasAccount || accountMode === 'open') && (
-        <View style={accountStyles.section}>
-          <Text style={accountStyles.sectionTitle}>Payment</Text>
+        <View style={accountStylesCommon.section}>
+          <View style={accountStylesCommon.sectionHeading}>
+            <MaterialCommunityIcons
+              name="credit-card-outline"
+              size={23}
+              color="#D8DCE3"
+            />
+            <Text style={accountStylesCommon.sectionTitle}>Payment</Text>
+          </View>
           {hasAccount && customer?.paymentMethodBrand && customer.paymentMethodLast4 ? (
             <>
-              <Text style={accountStyles.fieldLabel}>Saved card</Text>
+              <Text style={accountStylesCommon.fieldLabel}>Saved card</Text>
               <Text style={accountStyles.infoValue}>
                 {String(customer.paymentMethodBrand).toUpperCase()} ending in {customer.paymentMethodLast4}
               </Text>
@@ -522,7 +536,7 @@ export default function CustomerAccountScreen() {
               )}
             </>
           ) : (
-            <Text style={accountStyles.emptyText}>
+            <Text style={accountStylesCommon.emptyText}>
               {hasAccount ? 'No payment card saved yet.' : 'You can add a card after opening your account.'}
             </Text>
           )}
@@ -532,7 +546,7 @@ export default function CustomerAccountScreen() {
               onPress={setupCustomerCard}
               disabled={paymentLoading}
             >
-              <Text style={accountStyles.buttonText}>
+              <Text style={accountStylesCommon.buttonText}>
                 {paymentLoading ? 'Processing…' : customer?.paymentMethodLast4 ? 'Change Card' : 'Add Payment Card'}
               </Text>
             </Pressable>
@@ -542,43 +556,44 @@ export default function CustomerAccountScreen() {
 
       {/* Trip History */}
       {hasAccount && (
-        <View style={accountStyles.section}>
-        <Text style={accountStyles.sectionTitle}>Trip History</Text>
+        <View style={accountStylesCommon.section}>
+          <View style={accountStylesCommon.sectionHeading}>
+            <MaterialCommunityIcons
+              name="history"
+              size={23}
+              color="#D8DCE3"
+            />
+            <Text style={accountStylesCommon.sectionTitle}>Trip History</Text>
+          </View>
 
         {customerTrips.length === 0 ? (
-          <Text style={accountStyles.emptyText}>
+          <Text style={accountStylesCommon.emptyText}>
             No trip history.
           </Text>
         ) : (
           customerTrips.map((trip) => (
             <View
               key={trip.tripID}
-              style={accountStyles.tripRow}
+              style={accountStylesCommon.tripRow}
             >
               <View>
-                <Text style={accountStyles.tripDate}>
+                <Text style={accountStylesCommon.tripDate}>
                   {formatTripDate(trip.requestedAt)}
                 </Text>
 
-                <Text style={accountStyles.tripRoute}>
+                <Text style={accountStylesCommon.tripRoute}>
                   Trip: {formatDisplayTripID(trip.displayTripID)}
                 </Text>
 
-                <Text style={accountStyles.tripRoute}>
-                  To: {trip.to
-                    ? `${trip.to.slice(0, 20)}${trip.to.length > 20 ? '...' : ''}`
-                    : '...'}
-                </Text>
-
-                <Text style={accountStyles.tripRoute}>
+                <Text style={accountStylesCommon.tripRoute}>
                   Status: {trip.status}
                 </Text>
 
-                <Text style={accountStyles.tripRoute}>
+                <Text style={accountStylesCommon.tripRoute}>
                   Cargo: {trip.cargo || '...'}
                 </Text>
 
-                <Text style={accountStyles.tripRoute}>
+                <Text style={accountStylesCommon.tripRoute}>
                   Distance:{' '}
                   {trip.distance !== null
                     ? `${trip.distance.toFixed(2)} mi`
@@ -586,12 +601,12 @@ export default function CustomerAccountScreen() {
                 </Text>
 
                 {trip.driverFirstName && (
-                  <Text style={accountStyles.tripRoute}>
+                  <Text style={accountStylesCommon.tripRoute}>
                     Driver: {trip.driverFirstName}
                   </Text>
                 )}
 
-                <Text style={accountStyles.tripRoute}>
+                <Text style={accountStylesCommon.tripRoute}>
                   Rating:{' '}
                   {trip.driverRating != null
                     ? `${trip.driverRating}/5`
@@ -599,7 +614,7 @@ export default function CustomerAccountScreen() {
                 </Text>                
               </View>
 
-              <Text style={accountStyles.tripFare}>
+              <Text style={accountStylesCommon.tripFare}>
                 {trip.fare !== null
                   ? `$${trip.fare.toFixed(2)}`
                   : '...'}
@@ -611,7 +626,7 @@ export default function CustomerAccountScreen() {
       )}
 
       {/* Actions */}
-      <View style={accountStyles.actions}>
+      <View style={accountStylesCommon.actions}>
 
         {!hasAccount ? (
           <>
@@ -620,7 +635,7 @@ export default function CustomerAccountScreen() {
                 style={accountStyles.primaryButton}
                 onPress={login}
               >
-                <Text style={accountStyles.buttonText}>
+                <Text style={accountStylesCommon.buttonText}>
                   Login
                 </Text>
               </Pressable>
@@ -629,7 +644,7 @@ export default function CustomerAccountScreen() {
                 style={accountStyles.primaryButton}
                 onPress={openAccount}
               >
-                <Text style={accountStyles.buttonText}>
+                <Text style={accountStylesCommon.buttonText}>
                   Open
                 </Text>
               </Pressable>
@@ -641,16 +656,16 @@ export default function CustomerAccountScreen() {
               style={accountStyles.primaryButton}
               onPress={logout}
             >
-              <Text style={accountStyles.buttonText}>
+              <Text style={accountStylesCommon.buttonText}>
                 Logout
               </Text>
             </Pressable>
                       
             <Pressable
-              style={accountStyles.deleteButton}
+              style={accountStylesCommon.deleteButton}
               onPress={deleteAccount}
             >
-              <Text style={accountStyles.buttonText}>
+              <Text style={accountStylesCommon.buttonText}>
                 Delete Account
               </Text>
             </Pressable>

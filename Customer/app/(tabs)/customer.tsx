@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
-import { styles as commonStyles } from '../../components/common';
+import { styles as commonStyles } from '../../../Common/src/components/common';
 import { styles as customerStyles } from '../../components/customer';
 import { useAuth } from '../../data/auth';
 import { useCustomer } from '../../data/customer';

@@ -2,7 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as Linking from 'expo-linking';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { styles as commonStyles } from '../components/common';
+import { styles as commonStyles } from '../../Common/src/components/common';
 import { styles as settingsStyles } from '../components/settings';
 
 const LASTER_WEBSITE = 'https://laster.example.com';

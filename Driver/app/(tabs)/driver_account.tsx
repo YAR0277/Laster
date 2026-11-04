@@ -16,7 +16,8 @@ import { File } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
-import { styles as commonStyles } from '../../components/common';
+import { styles as accountStylesCommon } from '../../../Common/src/components/account';
+import { styles as commonStyles } from '../../../Common/src/components/common';
 import { styles as accountStyles } from '../../components/driver_account';
 import { useAuth } from '../../data/auth';
 import { useDriver } from '../../data/driver';
@@ -560,28 +561,28 @@ export default function DriverAccountScreen() {
       contentContainerStyle={commonStyles.contentContainer}
     >
       {/* Page Header */}
-      <View style={accountStyles.pageHeader}>
-        <Text style={accountStyles.pageSubtitle}>
+      <View style={accountStylesCommon.pageHeader}>
+        <Text style={accountStylesCommon.pageSubtitle}>
           Manage your Driver account
         </Text>
       </View>
 
       {/* Login / Open Account Toggle */}
       {!hasAccount && (
-        <View style={accountStyles.toggleContainer}>
+        <View style={accountStylesCommon.toggleContainer}>
           <Pressable
             style={[
-              accountStyles.toggleButton,
+              accountStylesCommon.toggleButton,
               accountMode === 'login' &&
-                accountStyles.toggleButtonSelected,
+                accountStylesCommon.toggleButtonSelected,
             ]}
             onPress={() => setAccountMode('login')}
           >
             <Text
               style={[
-                accountStyles.toggleText,
+                accountStylesCommon.toggleText,
                 accountMode === 'login' &&
-                  accountStyles.toggleTextSelected,
+                  accountStylesCommon.toggleTextSelected,
               ]}
             >
               Login
@@ -590,17 +591,17 @@ export default function DriverAccountScreen() {
 
           <Pressable
             style={[
-              accountStyles.toggleButton,
+              accountStylesCommon.toggleButton,
               accountMode === 'open' &&
-                accountStyles.toggleButtonSelected,
+                accountStylesCommon.toggleButtonSelected,
             ]}
             onPress={() => setAccountMode('open')}
           >
             <Text
               style={[
-                accountStyles.toggleText,
+                accountStylesCommon.toggleText,
                 accountMode === 'open' &&
-                  accountStyles.toggleTextSelected,
+                  accountStylesCommon.toggleTextSelected,
               ]}
             >
               Open Account
@@ -610,10 +611,10 @@ export default function DriverAccountScreen() {
       )}
 
       {/* Login */}
-      <View style={accountStyles.section}>
-        <Text style={accountStyles.fieldLabel}>Email</Text>
+      <View style={accountStylesCommon.section}>
+        <Text style={accountStylesCommon.fieldLabel}>Email</Text>
         <TextInput
-          style={accountStyles.input}
+          style={accountStylesCommon.input}
           placeholder="Enter email address"
           placeholderTextColor="#888"
           value={email}
@@ -622,9 +623,9 @@ export default function DriverAccountScreen() {
           autoCapitalize="none"
         />
 
-        <Text style={accountStyles.fieldLabel}>Password</Text>
+        <Text style={accountStylesCommon.fieldLabel}>Password</Text>
         <TextInput
-          style={accountStyles.input}
+          style={accountStylesCommon.input}
           placeholder="Enter password"
           placeholderTextColor="#888"
           value={password}
@@ -636,37 +637,37 @@ export default function DriverAccountScreen() {
 
       {/* Contact */}
       {(hasAccount || accountMode === 'open') && (
-        <View style={accountStyles.section}>
-          <View style={accountStyles.sectionHeading}>
+        <View style={accountStylesCommon.section}>
+          <View style={accountStylesCommon.sectionHeading}>
             <MaterialCommunityIcons
               name="account-outline"
               size={23}
               color="#D8DCE3"
             />
-            <Text style={accountStyles.sectionTitle}>Contact</Text>
+            <Text style={accountStylesCommon.sectionTitle}>Contact</Text>
           </View>
 
-          <Text style={accountStyles.fieldLabel}>First Name</Text>
+          <Text style={accountStylesCommon.fieldLabel}>First Name</Text>
           <TextInput
-            style={accountStyles.input}
+            style={accountStylesCommon.input}
             placeholder="Enter first name"
             placeholderTextColor="#888"
             value={firstName}
             onChangeText={setFirstName}
           />
 
-          <Text style={accountStyles.fieldLabel}>Last Name</Text>
+          <Text style={accountStylesCommon.fieldLabel}>Last Name</Text>
           <TextInput
-            style={accountStyles.input}
+            style={accountStylesCommon.input}
             placeholder="Enter last name"
             placeholderTextColor="#888"
             value={lastName}
             onChangeText={setLastName}
           />
 
-          <Text style={accountStyles.fieldLabel}>Phone</Text>
+          <Text style={accountStylesCommon.fieldLabel}>Phone</Text>
           <TextInput
-            style={accountStyles.input}
+            style={accountStylesCommon.input}
             placeholder="Enter phone number"
             placeholderTextColor="#888"
             value={phone}
@@ -678,37 +679,37 @@ export default function DriverAccountScreen() {
 
       {/* Pickup Truck */}
       {(hasAccount || accountMode === 'open') && (
-        <View style={accountStyles.section}>
-        <View style={accountStyles.sectionHeading}>
+        <View style={accountStylesCommon.section}>
+        <View style={accountStylesCommon.sectionHeading}>
           <MaterialCommunityIcons
             name="car-pickup"
             size={23}
             color="#D8DCE3"
           />
-          <Text style={accountStyles.sectionTitle}>Pickup Truck</Text>
+          <Text style={accountStylesCommon.sectionTitle}>Pickup Truck</Text>
         </View>
 
-        <Text style={accountStyles.fieldLabel}>Make</Text>
+        <Text style={accountStylesCommon.fieldLabel}>Make</Text>
         <TextInput
-          style={accountStyles.input}
+          style={accountStylesCommon.input}
           placeholder="Enter truck make"
           placeholderTextColor="#888"
           value={make}
           onChangeText={setMake}
         />
 
-        <Text style={accountStyles.fieldLabel}>Model</Text>
+        <Text style={accountStylesCommon.fieldLabel}>Model</Text>
         <TextInput
-          style={accountStyles.input}
+          style={accountStylesCommon.input}
           placeholder="Enter truck model"
           placeholderTextColor="#888"
           value={model}
           onChangeText={setModel}
         />
 
-        <Text style={accountStyles.fieldLabel}>Year</Text>
+        <Text style={accountStylesCommon.fieldLabel}>Year</Text>
         <TextInput
-          style={accountStyles.input}
+          style={accountStylesCommon.input}
           placeholder="Enter truck year"
           placeholderTextColor="#888"
           value={year}
@@ -716,9 +717,9 @@ export default function DriverAccountScreen() {
           keyboardType="number-pad"
         />
 
-        <Text style={accountStyles.fieldLabel}>VIN Number</Text>
+        <Text style={accountStylesCommon.fieldLabel}>VIN Number</Text>
         <TextInput
-          style={accountStyles.input}
+          style={accountStylesCommon.input}
           placeholder="Enter VIN"
           placeholderTextColor="#8F96A3"
           value={vinNumber}
@@ -727,7 +728,7 @@ export default function DriverAccountScreen() {
           maxLength={17}
         />
 
-        <Text style={accountStyles.fieldLabel}>Truck Photo</Text>
+        <Text style={accountStylesCommon.fieldLabel}>Truck Photo</Text>
         <Pressable
           style={accountStyles.photoButton}
           onPress={pickTruckPhoto}
@@ -749,47 +750,47 @@ export default function DriverAccountScreen() {
 
       {/* Driver's License */}
       {(hasAccount || accountMode === 'open') && (
-        <View style={accountStyles.section}>
-        <View style={accountStyles.sectionHeading}>
+        <View style={accountStylesCommon.section}>
+        <View style={accountStylesCommon.sectionHeading}>
           <MaterialCommunityIcons
             name="card-account-details-outline"
             size={23}
             color="#D8DCE3"
           />
-          <Text style={accountStyles.sectionTitle}>Driver's License</Text>
+          <Text style={accountStylesCommon.sectionTitle}>Driver's License</Text>
         </View>
 
 
-        <Text style={accountStyles.fieldLabel}>
+        <Text style={accountStylesCommon.fieldLabel}>
           Number
         </Text>
 
         <TextInput
-          style={accountStyles.input}
+          style={accountStylesCommon.input}
           placeholder="Enter license number"
           placeholderTextColor="#888"
           value={licenseNumber}
           onChangeText={setLicenseNumber}
         />
 
-        <Text style={accountStyles.fieldLabel}>
+        <Text style={accountStylesCommon.fieldLabel}>
           State
         </Text>
 
         <TextInput
-          style={accountStyles.input}
+          style={accountStylesCommon.input}
           placeholder="Enter license state"
           placeholderTextColor="#888"
           value={licenseState}
           onChangeText={setLicenseState}
         />
 
-        <Text style={accountStyles.fieldLabel}>
+        <Text style={accountStylesCommon.fieldLabel}>
           Date of Birth
         </Text>
 
         <TextInput
-          style={accountStyles.input}
+          style={accountStylesCommon.input}
           placeholder="MM/DD/YYYY"
           placeholderTextColor="#888"
           value={dateOfBirth}
@@ -800,37 +801,37 @@ export default function DriverAccountScreen() {
 
       {/* Insurance */}
       {(hasAccount || accountMode === 'open') && (
-        <View style={accountStyles.section}>
-        <View style={accountStyles.sectionHeading}>
+        <View style={accountStylesCommon.section}>
+        <View style={accountStylesCommon.sectionHeading}>
           <MaterialCommunityIcons
             name="shield-check-outline"
             size={23}
             color="#D8DCE3"
           />
-          <Text style={accountStyles.sectionTitle}>Insurance</Text>
+          <Text style={accountStylesCommon.sectionTitle}>Insurance</Text>
         </View>
 
-        <Text style={accountStyles.fieldLabel}>Company</Text>
+        <Text style={accountStylesCommon.fieldLabel}>Company</Text>
         <TextInput
-          style={accountStyles.input}
+          style={accountStylesCommon.input}
           placeholder="Enter insurance company"
           placeholderTextColor="#888"
           value={insuranceCompany}
           onChangeText={setInsuranceCompany}
         />
 
-        <Text style={accountStyles.fieldLabel}>Policy Number</Text>
+        <Text style={accountStylesCommon.fieldLabel}>Policy Number</Text>
         <TextInput
-          style={accountStyles.input}
+          style={accountStylesCommon.input}
           placeholder="Enter policy number"
           placeholderTextColor="#888"
           value={insurancePolicy}
           onChangeText={setInsurancePolicy}
         />
 
-        <Text style={accountStyles.fieldLabel}>Expiration Date</Text>
+        <Text style={accountStylesCommon.fieldLabel}>Expiration Date</Text>
         <TextInput
-          style={accountStyles.input}
+          style={accountStylesCommon.input}
           placeholder="MM/DD/YYYY"
           placeholderTextColor="#8F96A3"
           value={insuranceExpirationDate}
@@ -843,26 +844,26 @@ export default function DriverAccountScreen() {
 
       {/* Update Account */}
       {hasAccount && (
-        <View style={accountStyles.actions}>
+        <View style={accountStylesCommon.actions}>
           <Pressable
             style={accountStyles.primaryButton}
             onPress={updateAccount}
           >
-            <Text style={accountStyles.buttonText}>Update Account</Text>
+            <Text style={accountStylesCommon.buttonText}>Update Account</Text>
           </Pressable>
         </View>
       )}
 
       {/* Payout Settings */}
       {hasAccount && (
-        <View style={accountStyles.section}>
-          <View style={accountStyles.sectionHeading}>
+        <View style={accountStylesCommon.section}>
+          <View style={accountStylesCommon.sectionHeading}>
             <MaterialCommunityIcons
               name="wallet-outline"
               size={23}
               color="#D8DCE3"
             />
-            <Text style={accountStyles.sectionTitle}>
+            <Text style={accountStylesCommon.sectionTitle}>
               Payout Settings
             </Text>
           </View>
@@ -892,17 +893,17 @@ export default function DriverAccountScreen() {
 
       {/* Rating */}
       {hasAccount && driver?.rating != null && (
-        <View style={accountStyles.section}>
+        <View style={accountStylesCommon.section}>
           {/* <Text style={accountStyles.sectionTitle}>Rating</Text> */}
-          <View style={accountStyles.sectionHeading}>
+          <View style={accountStylesCommon.sectionHeading}>
             <MaterialCommunityIcons
               name="star"
               size={23}
               color="#E7B94C"
             />
-            <Text style={accountStyles.sectionTitle}>Rating</Text>
+            <Text style={accountStylesCommon.sectionTitle}>Rating</Text>
           </View>
-          <Text style={accountStyles.fieldLabel}>
+          <Text style={accountStylesCommon.fieldLabel}>
             {driver.rating.toFixed(1)} / 5
           </Text>
         </View>
@@ -910,60 +911,53 @@ export default function DriverAccountScreen() {
 
       {/* Trip History */}
       {hasAccount && (
-        <View style={accountStyles.section}>
-          {/* <Text style={accountStyles.sectionTitle}>Trip History</Text> */}
-          <View style={accountStyles.sectionHeading}>
+        <View style={accountStylesCommon.section}>
+          <View style={accountStylesCommon.sectionHeading}>
             <MaterialCommunityIcons
               name="history"
               size={23}
               color="#D8DCE3"
             />
-            <Text style={accountStyles.sectionTitle}>Trip History</Text>
+            <Text style={accountStylesCommon.sectionTitle}>Trip History</Text>
           </View>
 
           {driverTrips.length === 0 ? (
-            <Text style={accountStyles.emptyText}>
+            <Text style={accountStylesCommon.emptyText}>
               No trip history.
             </Text>
           ) : (
             driverTrips.map((trip) => (
               <View
                 key={trip.tripID}
-                style={accountStyles.tripRow}
+                style={accountStylesCommon.tripRow}
               >
                 <View>
-                  <Text style={accountStyles.tripDate}>
+                  <Text style={accountStylesCommon.tripDate}>
                     {formatTripDate(trip.requestedAt)}
                   </Text>
 
-                  <Text style={accountStyles.tripRoute}>
+                  <Text style={accountStylesCommon.tripRoute}>
                     Status: {trip.status}
                   </Text>
                   
-                  <Text style={accountStyles.tripRoute}>
-                    From: {trip.from
-                      ? `${trip.from.slice(0, 20)}${trip.from.length > 20 ? '...' : ''}`
-                      : '...'}
-                  </Text>
-
                   {trip.customerFirstName && (
-                    <Text style={accountStyles.tripRoute}>
+                    <Text style={accountStylesCommon.tripRoute}>
                       Customer: {trip.customerFirstName}
                     </Text>
                   )}
 
-                  <Text style={accountStyles.tripRoute}>
+                  <Text style={accountStylesCommon.tripRoute}>
                     Cargo: {trip.cargo || '...'}
                   </Text>
 
-                  <Text style={accountStyles.tripRoute}>
+                  <Text style={accountStylesCommon.tripRoute}>
                     Distance:{' '}
                     {trip.distance !== null
                       ? `${trip.distance.toFixed(2)} mi`
                       : '...'}
                   </Text>
 
-                  <Text style={accountStyles.tripRoute}>
+                  <Text style={accountStylesCommon.tripRoute}>
                     Rating:{' '}
                     {trip.driverRating != null
                       ? `${trip.driverRating}/5`
@@ -971,7 +965,7 @@ export default function DriverAccountScreen() {
                   </Text>
                 </View>
 
-                <Text style={accountStyles.tripFare}>
+                <Text style={accountStylesCommon.tripFare}>
                   {trip.payout !== null
                     ? `$${trip.payout.toFixed(2)}`
                     : '...'}
@@ -983,13 +977,13 @@ export default function DriverAccountScreen() {
       )}
 
       {/* Actions */}
-      <View style={accountStyles.actions}>
+      <View style={accountStylesCommon.actions}>
         {!hasAccount ? (
           <Pressable
             style={accountStyles.primaryButton}
             onPress={accountMode === 'login' ? login : openAccount}
           >
-            <Text style={accountStyles.buttonText}>
+            <Text style={accountStylesCommon.buttonText}>
               {accountMode === 'login' ? 'Login' : 'Open'}
             </Text>
           </Pressable>
@@ -999,16 +993,16 @@ export default function DriverAccountScreen() {
               style={accountStyles.primaryButton}
               onPress={logout}
             >
-              <Text style={accountStyles.buttonText}>
+              <Text style={accountStylesCommon.buttonText}>
                 Logout
               </Text>
             </Pressable>
 
             <Pressable
-              style={accountStyles.deleteButton}
+              style={accountStylesCommon.deleteButton}
               onPress={deleteAccount}
             >
-              <Text style={accountStyles.buttonText}>
+              <Text style={accountStylesCommon.buttonText}>
                 Delete Account
               </Text>
             </Pressable>

@@ -2,7 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
-import { styles as commonStyles } from '../../components/common';
+import { styles as commonStyles } from '../../../Common/src/components/common';
 import { styles as indexStyles } from '../../components/index';
 import { useAuth } from '../../data/auth';
 import { supabase } from '../../lib/supabase';

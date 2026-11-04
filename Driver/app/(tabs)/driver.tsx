@@ -10,7 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { styles as commonStyles } from '../../components/common';
+import { styles as commonStyles } from '../../../Common/src/components/common';
 import { styles as driverStyles } from '../../components/driver';
 import { useDriver } from '../../data/driver';
 import { useTrip } from '../../data/trip';
