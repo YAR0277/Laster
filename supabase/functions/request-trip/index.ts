@@ -222,12 +222,18 @@ Deno.serve(async (req) => {
 
       const geocodeResponse = await fetch(geocodeUrl, {
         headers: {
-          'User-Agent': 'Laster/1.0 (contact: support@laster.app)',
+          'User-Agent': 'Laster/1.0 (Laster app)',
         },
       });
 
+      console.log('Reverse geocoding URL:', geocodeUrl.toString());
+      console.log('Reverse geocoding HTTP status:', geocodeResponse.status);  
+
+      const geocodeBody = await geocodeResponse.text();
+      console.log('Reverse geocoding response body:', geocodeBody);
+
       if (geocodeResponse.ok) {
-        const geocodeResult = await geocodeResponse.json();
+        const geocodeResult = JSON.parse(geocodeBody);
 
         if (
           typeof geocodeResult.display_name === 'string' &&

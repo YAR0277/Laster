@@ -161,7 +161,8 @@ export default function RenterScreen() {
       .filter(
         (trip) =>
           trip.status === 'Requested' ||
-          trip.status === 'Accepted'
+          trip.status === 'Accepted' ||
+          trip.status === 'Started'
       )
       .sort(
         (a, b) =>
@@ -375,11 +376,20 @@ export default function RenterScreen() {
         cargoPhotoUrl = data.publicUrl;
       }
 
+      const pickupAddress = await osmMappingProvider.doReverseGeocode({
+        latitude: originLocation.latitude,
+        longitude: originLocation.longitude,
+      });
+
+      if (!pickupAddress) {
+        throw new Error('Could not determine the pickup address.');
+      }
+
       const { data: result, error } = await supabase.functions.invoke(
         'request-trip',
         {
           body: {
-            from: 'Current location',
+            from: pickupAddress,
             to,
             cargo,
             cargoPhoto: cargoPhotoUrl,
