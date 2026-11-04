@@ -24,6 +24,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#454B55',
     backgroundColor: '#303641',
+    marginBottom: 16,
   },
 
   tripID: {

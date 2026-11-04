@@ -157,46 +157,68 @@ export default function RenterScreen() {
   }, [supabaseAuthUser, customer]);
 
   useEffect(() => {
-    const loadCurrentTripID = async () => {
-      const savedTripID = await AsyncStorage.getItem(
-        'laster_current_trip_id'
+    const activeTrips = trips
+      .filter(
+        (trip) =>
+          trip.status === 'Requested' ||
+          trip.status === 'Accepted'
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.requestedAt).getTime() -
+          new Date(a.requestedAt).getTime()
       );
 
-      if (savedTripID) {
-        setCurrentTripID(savedTripID);
-      }
-    };
-
-    loadCurrentTripID();
-  }, []);
+    setCurrentTripID(activeTrips[0]?.tripID ?? null);
+  }, [trips]);
 
   const currentTrip = trips.find(
     (trip) => trip.tripID === currentTripID
   );
 
   useEffect(() => {
-    if (!currentTrip) {
+    if (currentTrip) {
+      // Restore the active trip.
+      setTo(currentTrip.to);
+      setToLocation(
+        currentTrip.toLatitude != null &&
+        currentTrip.toLongitude != null
+          ? {
+              latitude: currentTrip.toLatitude,
+              longitude: currentTrip.toLongitude,
+            }
+          : null
+      );
+
+      setCargo(currentTrip.cargo);
+      setCargoPhoto(currentTrip.cargoPhoto || null);
+
+      setFirstName(currentTrip.customerFirstName);
+      setPhone(currentTrip.phone);
+      setPayment(currentTrip.payment);
+
+      setRouteDistance(currentTrip.distance ?? null);
+      setRouteFare(currentTrip.fare ?? null);
+
       return;
     }
 
-    setTo(currentTrip.to);
-    setToLocation(
-      currentTrip.toLatitude != null &&
-      currentTrip.toLongitude != null
-        ? {
-            latitude: currentTrip.toLatitude,
-            longitude: currentTrip.toLongitude,
-          }
-        : null
-    );    
-    setCargo(currentTrip.cargo);
-    setCargoPhoto(currentTrip.cargoPhoto || null);    
-    setFirstName(currentTrip.customerFirstName);
-    setPhone(currentTrip.phone);
-    setPayment(currentTrip.payment);
-    setRouteDistance(currentTrip.distance ?? null);
-    setRouteFare(currentTrip.fare ?? null);    
-  }, [currentTrip]);
+    // No active trip: clear rental-specific fields.
+    setTo('');
+    setToLocation(null);
+    setCargo('');
+    setCargoPhoto(null);
+
+    setRouteDistance(null);
+    setRouteFare(null);
+    setRouteError(null);
+
+    // Populate account fields for the logged-in customer.
+    setFirstName(customer?.firstName ?? '');
+    setPhone(customer?.phone ?? '');
+    setPayment(customer?.payment ?? '');
+
+  }, [currentTrip, customer]);
 
   useEffect(() => {
     if (customer && !currentTrip) {

@@ -206,6 +206,45 @@ Deno.serve(async (req) => {
     const tripID = `T${crypto.randomUUID()}`;
     const requestedAt = new Date().toISOString();
 
+    // Resolve pickup coordinates to a readable address.
+    let pickupAddress = from.trim();
+
+    try {
+      const geocodeUrl = new URL(
+        'https://nominatim.openstreetmap.org/reverse',
+      );
+
+      geocodeUrl.search = new URLSearchParams({
+        format: 'jsonv2',
+        lat: String(fromLatitude),
+        lon: String(fromLongitude),
+      }).toString();
+
+      const geocodeResponse = await fetch(geocodeUrl, {
+        headers: {
+          'User-Agent': 'Laster/1.0 (contact: support@laster.app)',
+        },
+      });
+
+      if (geocodeResponse.ok) {
+        const geocodeResult = await geocodeResponse.json();
+
+        if (
+          typeof geocodeResult.display_name === 'string' &&
+          geocodeResult.display_name.trim()
+        ) {
+          pickupAddress = geocodeResult.display_name.trim();
+        }
+      } else {
+        console.error(
+          'Pickup reverse-geocoding failed:',
+          geocodeResponse.status,
+        );
+      }
+    } catch (error) {
+      console.error('Pickup reverse-geocoding error:', error);
+    }
+
     // A pending trip is deliberately not discoverable by drivers.
     const { data: pendingTrip, error: insertError } = await admin
       .from('trips')
@@ -217,7 +256,7 @@ Deno.serve(async (req) => {
         driver_first_name: '',
         truck: '',
         truck_photo: '',
-        from_location: from.trim(),
+        from_location: pickupAddress,
         to_location: to.trim(),
         trip_from_lat: fromLatitude,
         trip_from_lon: fromLongitude,
