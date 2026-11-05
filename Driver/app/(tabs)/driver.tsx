@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   Alert,
+  Image,
   Pressable,
   ScrollView,
   Text,
@@ -435,16 +436,30 @@ export default function DriverScreen() {
             </Text>
 
             <Text style={driverStyles.tripText}>
-              <Text style={driverStyles.tripLabel}>Cargo: </Text>
-              {trip.cargo || '...'}
-            </Text>
-
-            <Text style={driverStyles.tripText}>
-              <Text style={driverStyles.tripLabel}>Distance: </Text>
+              <Text style={driverStyles.tripLabel}>Trip distance: </Text>
               {trip.distance != null
                 ? `${trip.distance.toFixed(1)} mi`
                 : '...'}
             </Text>
+
+            <Text style={driverStyles.tripText}>
+              <Text style={driverStyles.tripLabel}>Cargo: </Text>
+              {trip.cargo || '...'}
+            </Text>
+
+            {trip.cargoPhoto ? (
+              <Image
+                source={{ uri: trip.cargoPhoto }}
+                style={{
+                  width: '100%',
+                  height: 180,
+                  borderRadius: 8,
+                  marginTop: 8,
+                  marginBottom: 8,
+                }}
+                resizeMode="cover"
+              />
+            ) : null}
 
             <Text style={driverStyles.tripText}>
               <Text style={driverStyles.tripLabel}>Fare: </Text>
@@ -490,8 +505,44 @@ export default function DriverScreen() {
               </Pressable>
             )}
 
-            {/* Start and Abort Trip */}
-            {trip.status === 'Accepted' && (
+          {/* Accepted Trip Instructions and Actions */}
+          {trip.status === 'Accepted' && (
+            <View style={{ gap: 12 }}>
+              {/* Divider */}
+              <View
+                style={{
+                  height: 1,
+                  backgroundColor: '#6B7280',
+                  marginVertical: 4,
+                }}
+              />
+
+              {/* Next Steps Heading */}
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: 'bold',
+                  color: '#FFFFFF',
+                }}
+              >
+                Next steps
+              </Text>
+
+              {/* Instructions */}
+              <Text style={driverStyles.tripText}>
+                Please drive to the pickup address by{' '}
+                <Text style={driverStyles.tripLabel}>From</Text>
+                {' '}to pick up {trip.customerFirstName}'s {trip.cargo}.
+
+                {'\n\n'}Once the {trip.cargo} is loaded and you're ready to go,
+                press <Text style={driverStyles.tripLabel}>Start</Text>.
+
+                {'\n\n'}If you need to{' '}
+                <Text style={driverStyles.tripLabel}>Abort</Text>,
+                {' '}{trip.customerFirstName} will be notified automatically.
+              </Text>
+
+              {/* Start and Abort Buttons */}
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <Pressable
                   style={[
@@ -531,7 +582,8 @@ export default function DriverScreen() {
                   </Text>
                 </Pressable>
               </View>
-            )}
+            </View>
+          )}
           </View>
         ))
       )}
