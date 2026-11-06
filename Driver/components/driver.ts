@@ -29,30 +29,10 @@ export const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  availabilityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 16,
-    marginBottom: 16,
-  },
-
-  availabilityText: {
-    fontSize: 14,
-    color: '#D8DCE3',
-  },
-
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '500',
-  },
-
-  loginMessage: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: '#8F96A3',
-    marginTop: 16,
   },
 
   status: {

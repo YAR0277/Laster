@@ -7,22 +7,10 @@ export const styles = StyleSheet.create({
     color: '#8F96A3',
   },
 
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
   infoValue: {
     fontSize: 15,
     color: '#F5F5F5',
     fontWeight: '500',
-  },
-
-  pageHeaderContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
 
   paymentButton: {

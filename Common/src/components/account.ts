@@ -11,7 +11,7 @@ export const styles = StyleSheet.create({
     color: '#F59E0B',
     textDecorationLine: 'underline',
   },
-    
+
   accountName: {
     color: '#B8BCC4',
     fontSize: 11,
@@ -80,21 +80,6 @@ export const styles = StyleSheet.create({
     fontSize: 15,
     color: '#8F96A3',
     marginTop: 4,
-  },
-
-  pageTitle: {
-    fontSize: 30,
-    fontWeight: '500',
-    color: '#F5F5F5',
-  },
-
-  secondaryButton: {
-    minHeight: 50,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#555C68',
-    marginBottom: 12,
   },
 
   section: {

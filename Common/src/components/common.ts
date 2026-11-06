@@ -10,10 +10,4 @@ export const styles = StyleSheet.create({
   contentContainer: {
     paddingBottom: 30,
   },
-
-  title: {
-    fontSize: 32,
-    fontWeight: '500',
-    color: '#F5F5F5',
-  },
 });

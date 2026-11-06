@@ -2,21 +2,6 @@ import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
 
-  accountActionsSection: {
-    marginTop: 6,
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: '#303641',
-    borderWidth: 1,
-    borderColor: '#454B55',
-  },
-  accountActionsTitle: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: '#F5F5F5',
-    marginBottom: 12,
-  },
-
   actionRow: {
     minHeight: 56,
     borderRadius: 10,
@@ -29,22 +14,11 @@ export const styles = StyleSheet.create({
     borderColor: '#454B55',
     marginBottom: 10,
   },
-  actionRowLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
   
   actionRowText: {
     color: '#F5F5F5',
     fontSize: 16,
     fontWeight: '500',
-  },
-
-  deleteActionRow: {
-    backgroundColor: '#8A3F3F',
-    borderColor: '#8A3F3F',
-    marginBottom: 0,
   },
 
   payoutDescription: {

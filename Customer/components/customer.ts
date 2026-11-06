@@ -27,18 +27,6 @@ export const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  accountOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 20,
-  },
-
-  accountOptionText: {
-    marginLeft: 8,
-    color: '#F5F5F5',
-    fontSize: 16,
-  },
-
   button: {
     marginTop: 10,
     minHeight: 50,
@@ -56,13 +44,6 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-
-  cargoPhoto: {
-    width: '100%',
-    height: 180,
-    borderRadius: 8,
-    marginTop: 10,
-  },  
 
   driverInfo: {
     borderTopWidth: 1,
