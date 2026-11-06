@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+import { styles as accountStylesCommon } from '../../../Common/src/components/account';
 import { styles as commonStyles } from '../../../Common/src/components/common';
 import { styles as customerStyles } from '../../components/customer';
 import { useAuth } from '../../data/auth';
@@ -594,37 +595,43 @@ export default function RenterScreen() {
     >
 
       {/* Page Header */}
-      <View style={customerStyles.pageHeader}>
-        <View style={customerStyles.pageHeaderContent}>
-          <View style={customerStyles.pageHeaderText}>
-            <Text style={customerStyles.pageSubtitle}>
-              To request a trip{' '}
-              <Text
-                style={customerStyles.accountLink}
-                onPress={() => router.push('/(tabs)/customer_account?mode=default')}
-              >
-                Log in
-              </Text>
+      <View style={accountStylesCommon.pageHeader}>
+        <View style={accountStylesCommon.pageHeaderContent}>
+          <View style={accountStylesCommon.pageHeaderText}>
+            <Text style={accountStylesCommon.pageSubtitle}>
+              {customer
+                ? 'Request and manage your trips'
+                : (
+                  <>
+                    <Text
+                      style={accountStylesCommon.accountLink}
+                      onPress={() => router.push('/(tabs)/customer_account?mode=default')}
+                    >
+                      Log in
+                    </Text>
+                    {' to request and manage your trips'}
+                  </>
+                )}
             </Text>
           </View>
 
           <Pressable
-            style={customerStyles.accountButton}
+            style={accountStylesCommon.accountButton}
             onPress={() => router.push('/customer_account?mode=default')}
           >
             <MaterialCommunityIcons
-              name={
-                customer
-                  ? 'account-check'
-                  : 'account-outline'
-              }
+              name={customer ? 'account-check' : 'account-outline'}
               size={30}
-              color={
-                customer
-                  ? '#F59E0B'
-                  : '#B8BCC4'
-              }
+              color={customer ? '#F59E0B' : '#B8BCC4'}
             />
+
+            {customer && (
+              <Text
+                style={accountStylesCommon.accountName}
+              >
+                {customer.firstName}
+              </Text>
+            )}
           </Pressable>
         </View>
       </View>

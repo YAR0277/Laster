@@ -5,6 +5,7 @@ import { Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { styles as commonStyles } from '../../../Common/src/components/common';
 import { styles as indexStyles } from '../../components/index';
 import { useAuth } from '../../data/auth';
+import { useCustomer } from '../../data/customer';
 import { supabase } from '../../lib/supabase';
 
 export default function HomeScreen() {
@@ -14,6 +15,7 @@ export default function HomeScreen() {
   const [pickupsAvailable, setPickupsAvailable] = useState<number | null>(null);
   const [averageDistance, setAverageDistance] = useState<number | null>(null);
   const { user } = useAuth();
+  const { customer } = useCustomer();
 
   useFocusEffect(
     useCallback(() => {
@@ -167,13 +169,33 @@ export default function HomeScreen() {
 
         <Pressable
           style={indexStyles.headerSide}
-          onPress={() => router.push('/settings')}
+          onPress={() => router.push('/customer_account?mode=default')}
         >
           <MaterialCommunityIcons
-            name="cog-outline"
-            size={27}
-            color="#B8BCC4"
+            name={
+              customer
+                ? 'account-check'
+                : 'account-outline'
+            }
+            size={30}
+            color={
+              customer
+                ? '#F59E0B'
+                : '#B8BCC4'
+            }
           />
+
+          {customer && (
+            <Text
+              style={{
+                color: '#B8BCC4',
+                fontSize: 11,
+                marginTop: 2,
+              }}
+            >
+              {customer.firstName}
+            </Text>
+          )}
         </Pressable>
       </View>
 

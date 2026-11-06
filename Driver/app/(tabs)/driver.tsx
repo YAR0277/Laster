@@ -11,6 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { styles as accountStylesCommon } from '../../../Common/src/components/account';
 import { styles as commonStyles } from '../../../Common/src/components/common';
 import { styles as driverStyles } from '../../components/driver';
 import { useDriver } from '../../data/driver';
@@ -362,37 +363,38 @@ export default function DriverScreen() {
       contentContainerStyle={commonStyles.contentContainer}
     >
       {/* Page Header */}
-      <View style={driverStyles.pageHeader}>
-        <View style={driverStyles.pageHeaderContent}>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={driverStyles.pageSubtitle}>
-              To view trips{' '}
-              <Text
-                style={driverStyles.accountLink}
-                onPress={() => router.push('/driver_account')}
-              >
-                Log in
-              </Text>
+      <View style={accountStylesCommon.pageHeader}>
+        <View style={accountStylesCommon.pageHeaderContent}>
+          <View style={accountStylesCommon.pageHeaderText}>
+            <Text style={accountStylesCommon.pageSubtitle}>
+              {!hasAccount && (
+                <>
+                  To view trips{' '}
+                  <Text
+                    style={accountStylesCommon.accountLink}
+                    onPress={() => router.push('/driver_account')}
+                  >
+                    Log in
+                  </Text>
+                </>
+              )}
             </Text>
           </View>
 
           <Pressable
-            style={driverStyles.accountButton}
+            style={accountStylesCommon.accountButton}
             onPress={() => router.push('/driver_account')}
           >
             <MaterialCommunityIcons
-              name={
-                hasAccount
-                  ? 'account-check'
-                  : 'account-outline'
-              }
+              name={hasAccount ? 'account-check' : 'account-outline'}
               size={30}
-              color={
-                hasAccount
-                  ? '#F59E0B'
-                  : '#B8BCC4'
-              }
+              color={hasAccount ? '#F59E0B' : '#B8BCC4'}
             />
+            {driver && (
+              <Text style={accountStylesCommon.accountName}>
+                {driver.firstName}
+              </Text>
+            )}            
           </Pressable>
         </View>
       </View>

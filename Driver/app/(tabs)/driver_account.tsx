@@ -562,9 +562,29 @@ export default function DriverAccountScreen() {
     >
       {/* Page Header */}
       <View style={accountStylesCommon.pageHeader}>
-        <Text style={accountStylesCommon.pageSubtitle}>
-          Manage your Driver account
-        </Text>
+        <View style={accountStylesCommon.pageHeaderContent}>
+          <View style={accountStylesCommon.pageHeaderText}>
+            <Text style={accountStylesCommon.pageSubtitle}>
+              Manage your Driver account
+            </Text>
+          </View>
+
+          <Pressable
+            style={accountStylesCommon.accountButton}
+            onPress={() => router.push('/driver_account')}
+          >
+            <MaterialCommunityIcons
+              name={hasAccount ? 'account-check' : 'account-outline'}
+              size={30}
+              color={hasAccount ? '#F59E0B' : '#B8BCC4'}
+            />
+            {driver && (
+              <Text style={accountStylesCommon.accountName}>
+                {driver.firstName}
+              </Text>
+            )}            
+          </Pressable>
+        </View>
       </View>
 
       {/* Login / Open Account Toggle */}

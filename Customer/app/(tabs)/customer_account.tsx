@@ -379,12 +379,29 @@ export default function CustomerAccountScreen() {
     >
       {/* Page Header */}
       <View style={accountStylesCommon.pageHeader}>
-        <View style={accountStyles.pageHeaderContent}>
-          <View>
+        <View style={accountStylesCommon.pageHeaderContent}>
+          <View style={accountStylesCommon.pageHeaderText}>
             <Text style={accountStylesCommon.pageSubtitle}>
               Manage your Customer account
             </Text>
           </View>
+
+          <Pressable
+            style={accountStylesCommon.accountButton}
+            onPress={() => router.push('/customer_account?mode=default')}
+          >
+            <MaterialCommunityIcons
+              name={customer ? 'account-check' : 'account-outline'}
+              size={30}
+              color={customer ? '#F59E0B' : '#B8BCC4'}
+            />
+
+            {customer && (
+              <Text style={accountStylesCommon.accountName}>
+                {customer.firstName}
+              </Text>
+            )}
+          </Pressable>
         </View>
       </View>
 

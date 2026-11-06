@@ -2,6 +2,22 @@ import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
 
+  accountButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  accountLink: {
+    color: '#F59E0B',
+    textDecorationLine: 'underline',
+  },
+    
+  accountName: {
+    color: '#B8BCC4',
+    fontSize: 11,
+    marginTop: 2,
+  },
+
   actions: {
     marginBottom: 30,
   },
@@ -47,6 +63,17 @@ export const styles = StyleSheet.create({
   pageHeader: {
     marginTop: 20,
     marginBottom: 25,
+  },
+
+  pageHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  
+  pageHeaderText: {
+    flex: 1,
+    minWidth: 0,
   },
 
   pageSubtitle: {

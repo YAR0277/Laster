@@ -95,13 +95,25 @@ export default function HomeScreen() {
 
         <Pressable
           style={indexStyles.headerSide}
-          onPress={() => router.push('/settings')}
+          onPress={() => router.push('/driver_account')}
         >
           <MaterialCommunityIcons
-            name="cog-outline"
-            size={27}
-            color="#B8BCC4"
+            name={driver ? 'account-check' : 'account-outline'}
+            size={30}
+            color={driver ? '#F59E0B' : '#B8BCC4'}
           />
+
+          {driver && (
+            <Text
+              style={{
+                color: '#B8BCC4',
+                fontSize: 11,
+                marginTop: 2,
+              }}
+            >
+              {driver.firstName}
+            </Text>
+          )}
         </Pressable>
       </View>
 

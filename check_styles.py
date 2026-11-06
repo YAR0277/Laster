@@ -1,199 +1,165 @@
+
 #!/usr/bin/env python3
 
 from pathlib import Path
 import re
+from collections import defaultdict
 
-
-# ------------------------------------------------------------
-# Project paths
-# ------------------------------------------------------------
 
 ROOT = Path(__file__).resolve().parent
-APP_DIR = ROOT / "app" / "(tabs)"
-COMPONENTS_DIR = ROOT / "components"
+AREAS = ("Common", "Customer", "Driver")
 
+# Files that import styles, excluding generated and dependency directories.
+SOURCE_FILES = [
+    path
+    for area in AREAS
+    for path in (ROOT / area).rglob("*.tsx")
+]
 
-# Page -> stylesheet
-PAGES = {
-    "index": {
-        "page": APP_DIR / "index.tsx",
-        "style": COMPONENTS_DIR / "index.ts",
-    },
-    "customer": {
-        "page": APP_DIR / "customer.tsx",
-        "style": COMPONENTS_DIR / "customer.ts",
-    },
-    "driver": {
-        "page": APP_DIR / "driver.tsx",
-        "style": COMPONENTS_DIR / "driver.ts",
-    },
-}
-
-
-# ------------------------------------------------------------
-# Find styles defined in a StyleSheet
-# ------------------------------------------------------------
 
 def find_style_definitions(style_file):
     text = style_file.read_text()
 
-    # Matches:
-    #
+    # Matches top-level StyleSheet entries, e.g.:
     #   container: {
-    #   quickCard: {
-    #   button: {
-    #
+    #   buttonText: {
     pattern = r"^\s{2}([A-Za-z_][A-Za-z0-9_]*)\s*:\s*\{"
 
     return set(re.findall(pattern, text, re.MULTILINE))
 
 
-# ------------------------------------------------------------
-# Find styles referenced by a page
-# ------------------------------------------------------------
+def find_style_imports(source_file):
+    text = source_file.read_text()
+    imports = {}
 
-def find_style_references(page_file):
-    text = page_file.read_text()
+    # Match imports such as:
+    # import { styles as commonStyles } from '../../Common/src/components/common';
+    pattern = (
+        r"import\s*\{\s*styles\s+as\s+(\w+)\s*\}"
+        r"\s*from\s*['\"]([^'\"]+)['\"]"
+    )
 
-    # Matches:
-    #
-    #   styles.container
-    #   styles.quickCard
-    #   styles.button
-    #
-    pattern = r"\b(?:styles|[A-Za-z_][A-Za-z0-9_]*Styles)\.([A-Za-z_][A-Za-z0-9_]*)"
+    for alias, import_path in re.findall(pattern, text):
+        resolved = (source_file.parent / import_path).resolve()
 
-    return set(re.findall(pattern, text))
+        # Also support imports that omit the .ts extension.
+        if not resolved.suffix:
+            resolved = resolved.with_suffix(".ts")
 
+        imports[alias] = resolved
 
-# ------------------------------------------------------------
-# Analyze each page
-# ------------------------------------------------------------
-
-def analyze_pages():
-    results = {}
-
-    for name, files in PAGES.items():
-
-        page_file = files["page"]
-        style_file = files["style"]
-
-        if not page_file.exists():
-            print(f"ERROR: Page not found: {page_file}")
-            continue
-
-        if not style_file.exists():
-            print(f"ERROR: Stylesheet not found: {style_file}")
-            continue
-
-        definitions = find_style_definitions(style_file)
-        references = find_style_references(page_file)
-
-        used = definitions & references
-        unused = definitions - references
-        missing = references - definitions
-
-        results[name] = {
-            "definitions": definitions,
-            "references": references,
-            "used": used,
-            "unused": unused,
-            "missing": missing,
-        }
-
-    return results
+    return imports
 
 
-# ------------------------------------------------------------
-# Print page-by-page results
-# ------------------------------------------------------------
+def find_style_references(source_file, aliases):
+    text = source_file.read_text()
+    references = defaultdict(set)
 
-def print_page_results(results):
+    for alias in aliases:
+        pattern = rf"\b{re.escape(alias)}\.([A-Za-z_][A-Za-z0-9_]*)"
 
-    for name, data in results.items():
+        references[alias].update(re.findall(pattern, text))
 
+    return references
+
+
+def analyze():
+    definitions = {}
+    usage = defaultdict(set)
+    missing = []
+
+    # Discover all stylesheets.
+    style_files = [
+        path
+        for area in AREAS
+        for path in (ROOT / area).rglob("*.ts")
+        if path.name not in ("index.ts",)
+    ]
+
+    for style_file in style_files:
+        styles = find_style_definitions(style_file)
+        if styles:
+            definitions[style_file.resolve()] = styles
+
+    # Match each imported stylesheet to references in its importing file.
+    for source_file in SOURCE_FILES:
+        imports = find_style_imports(source_file)
+        references = find_style_references(source_file, imports)
+
+        for alias, style_file in imports.items():
+            if style_file not in definitions:
+                continue
+
+            defined = definitions[style_file]
+            used = references[alias]
+
+            for style in used:
+                if style not in defined:
+                    missing.append((source_file, alias, style))
+                else:
+                    usage[(style_file, style)].add(source_file)
+
+    # Report each stylesheet.
+    for style_file, styles in sorted(definitions.items()):
         print()
-        print("=" * 60)
-        print(f"{name.upper()} STYLES")
-        print("=" * 60)
+        print("=" * 65)
+        print(style_file.relative_to(ROOT))
+        print("=" * 65)
 
-        print(f"\nDefined : {len(data['definitions'])}")
-        print(f"Used    : {len(data['used'])}")
-        print(f"Unused  : {len(data['unused'])}")
+        unused = sorted(
+            style for style in styles
+            if (style_file, style) not in usage
+        )
 
-        if data["used"]:
-            print("\nUSED:")
-            for style in sorted(data["used"]):
-                print(f"  {style}")
+        used = sorted(
+            style for style in styles
+            if (style_file, style) in usage
+        )
 
-        if data["unused"]:
+        print(f"Defined : {len(styles)}")
+        print(f"Used    : {len(used)}")
+        print(f"Unused  : {len(unused)}")
+
+        if unused:
             print("\nUNUSED:")
-            for style in sorted(data["unused"]):
+            for style in unused:
                 print(f"  {style}")
 
-        if data["missing"]:
-            print("\nREFERENCED BUT NOT DEFINED:")
-            for style in sorted(data["missing"]):
-                print(f"  {style}")
-
-
-# ------------------------------------------------------------
-# Find styles used by two or more pages
-# ------------------------------------------------------------
-
-def print_common_candidates(results):
-
-    usage = {}
-
-    for page, data in results.items():
-
-        for style in data["used"]:
-
-            if style not in usage:
-                usage[style] = set()
-
-            usage[style].add(page)
-
-    candidates = {
-        style: pages
-        for style, pages in usage.items()
-        if len(pages) >= 2
-    }
-
+    # Report missing style definitions.
     print()
-    print("=" * 60)
-    print("CANDIDATES FOR common.ts")
-    print("=" * 60)
+    print("=" * 65)
+    print("REFERENCED BUT NOT DEFINED")
+    print("=" * 65)
+
+    if not missing:
+        print("None")
+    else:
+        for source_file, alias, style in missing:
+            print(
+                f"{source_file.relative_to(ROOT)}: "
+                f"{alias}.{style}"
+            )
+
+    # Report styles used by multiple source files.
+    print()
+    print("=" * 65)
+    print("STYLES USED BY MULTIPLE FILES")
+    print("=" * 65)
+
+    candidates = [
+        (style_file, style, files)
+        for (style_file, style), files in usage.items()
+        if len(files) >= 2
+    ]
 
     if not candidates:
-        print("\nNo styles are currently used by more than one page.")
-        return
-
-    print()
-
-    for style in sorted(candidates):
-        pages = ", ".join(sorted(candidates[style]))
-        print(f"  {style:<25} {pages}")
-
-
-# ------------------------------------------------------------
-# Main
-# ------------------------------------------------------------
-
-def main():
-
-    results = analyze_pages()
-
-    if not results:
-        print("No pages were analyzed.")
-        return
-
-    print_page_results(results)
-
-    print_common_candidates(results)
-
-    print()
+        print("None")
+    else:
+        for style_file, style, files in sorted(candidates):
+            print(f"\n{style_file.relative_to(ROOT)}: {style}")
+            for source_file in sorted(files):
+                print(f"  {source_file.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
-    main()
+    analyze()
