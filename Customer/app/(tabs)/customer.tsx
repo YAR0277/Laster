@@ -157,21 +157,16 @@ export default function RenterScreen() {
   }, [supabaseAuthUser, customer]);
 
   useEffect(() => {
-    const activeTrips = trips
-      .filter(
-        (trip) =>
-          trip.status === 'Requested' ||
-          trip.status === 'Accepted' ||
-          trip.status === 'Started'
-      )
-      .sort(
-        (a, b) =>
-          new Date(b.requestedAt).getTime() -
-          new Date(a.requestedAt).getTime()
+    const restoreCurrentTrip = async () => {
+      const storedTripID = await AsyncStorage.getItem(
+        'laster_current_trip_id'
       );
 
-    setCurrentTripID(activeTrips[0]?.tripID ?? null);
-  }, [trips]);
+      setCurrentTripID(storedTripID);
+    };
+
+    void restoreCurrentTrip();
+  }, []);
 
   const currentTrip = trips.find(
     (trip) => trip.tripID === currentTripID
