@@ -41,13 +41,8 @@ export default function RenterScreen() {
 
   const [rating, setRating] = useState<number | null>(null);
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
-
-  const [originLocation, setOriginLocation] =
-    useState<Coordinates | null>(null);
-
-  const [toLocation, setToLocation] =
-    useState<Coordinates | null>(null);
-
+  const [originLocation, setOriginLocation] = useState<Coordinates | null>(null);
+  const [toLocation, setToLocation] = useState<Coordinates | null>(null);
   const [resolvingDestination, setResolvingDestination] = useState(false);
 
   const [requestingTrip, setRequestingTrip] = useState(false);
@@ -823,6 +818,16 @@ export default function RenterScreen() {
             onChangeText={setPayment}
             editable={status === 'Not submitted'}
           />
+        </View>
+
+        {/* To Address */}
+        <View style={customerStyles.infoRow}>
+          <View style={[customerStyles.infoContent, {flexDirection: 'row', alignItems: 'center'}]}>
+            <Text style={customerStyles.infoLabel}>TO</Text>
+            <Text style={[customerStyles.infoValue, {marginLeft: 12, flex: 1 }]}>
+              {to || '-'}
+            </Text>
+          </View>
         </View>
 
         {/* Fare */}
