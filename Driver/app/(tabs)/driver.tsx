@@ -534,9 +534,9 @@ export default function DriverScreen() {
               <Text style={driverStyles.tripText}>
                 Please drive to the pickup address by{' '}
                 <Text style={driverStyles.tripLabel}>From</Text>
-                {' '}to pick up {trip.customerFirstName}'s {trip.cargo}.
+                {' '}to pick up {trip.customerFirstName}&apos;s {trip.cargo}.
 
-                {'\n\n'}Once the {trip.cargo} is loaded and you're ready to go,
+                {'\n\n'}Once the {trip.cargo} is loaded and you&apos;re ready to go,
                 press <Text style={driverStyles.tripLabel}>Start</Text>.
 
                 {'\n\n'}If you need to{' '}

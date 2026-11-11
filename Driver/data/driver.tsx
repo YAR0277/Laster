@@ -23,9 +23,12 @@ export type Driver = {
   licenseNumber: string;
   licenseState: string;
   dateOfBirth: string;
+  licenseFrontPath: string | null;
+  licenseBackPath: string | null;
   insurancePolicy: string;
   insuranceCompany: string;
   insuranceExpirationDate: string;
+  insuranceCardPath: string | null;  
   rating: number | null;
   numberOfRatings: number;
   numberOfTrips: number;
@@ -84,9 +87,12 @@ export function DriverProvider({ children }: { children: ReactNode }) {
         licenseNumber: data.license_number,
         licenseState: data.license_state,
         dateOfBirth: data.date_of_birth,
+        licenseFrontPath: data.license_front_path,
+        licenseBackPath: data.license_back_path,
         insurancePolicy: data.insurance_policy,
         insuranceCompany: data.insurance_company,
         insuranceExpirationDate: data.insurance_expiration_date,
+        insuranceCardPath: data.insurance_card_path,        
         rating: data.rating,
         numberOfRatings: data.number_of_ratings,
         numberOfTrips: data.number_of_trips,

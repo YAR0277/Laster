@@ -30,6 +30,12 @@
     "plugins": [
       "expo-router",
       [
+        "expo-image-picker",
+        {
+          "cameraPermission": "LasterDriver needs camera access to photograph driver documents."
+        }
+      ],
+      [
         "@stripe/stripe-react-native",
         {
           "merchantIdentifier": null,
@@ -52,6 +58,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c3f709be-2ded-4481-a716-736b8009f4b8"
+      }
     }
   }
 }

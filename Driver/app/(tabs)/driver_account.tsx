@@ -1,5 +1,9 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useRouter } from 'expo-router';
+import {
+  extractTextFromImage,
+  isSupported,
+} from 'expo-text-extractor';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
@@ -24,6 +28,7 @@ import { useDriver } from '../../data/driver';
 import { useTrip } from '../../data/trip';
 import { supabase } from '../../lib/supabase';
 
+
 export default function DriverAccountScreen() {
   const router = useRouter();
   const { driver, setDriver } = useDriver();
@@ -44,9 +49,12 @@ export default function DriverAccountScreen() {
   const [licenseNumber, setLicenseNumber] = useState('');
   const [licenseState, setLicenseState] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [licenseFrontPhoto, setLicenseFrontPhoto] = useState<string | null>(null);
+  const [licenseBackPhoto, setLicenseBackPhoto] = useState<string | null>(null);
   const [insurancePolicy, setInsurancePolicy] = useState('');
   const [insuranceCompany, setInsuranceCompany] = useState('');
   const [insuranceExpirationDate, setInsuranceExpirationDate] = useState('');
+  const [insuranceCardPhoto, setInsuranceCardPhoto] = useState<string | null>(null);
   const [accountMode, setAccountMode] =
     useState<'login' | 'open'>('login');
   const hasAccount = supabaseAuthUser !== null && driver !== null;
@@ -54,6 +62,8 @@ export default function DriverAccountScreen() {
   const [payoutStatus, setPayoutStatus] = useState<
     'checking' | 'required' | 'ready' | 'restricted' | 'error'
   >('checking');
+  const [insuranceOCR, setInsuranceOCR] = useState('');
+  const [isOcrRunning, setIsOcrRunning] = useState(false);
 
   const formatTripDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -76,6 +86,113 @@ export default function DriverAccountScreen() {
     }
   };
 
+  const testInsuranceOCR = async () => {
+    if (!insuranceCardPhoto) {
+      Alert.alert('Missing Photo', 'Please select an insurance card photo first.');
+      return;
+    }
+
+    if (!isSupported) {
+      Alert.alert('OCR Unavailable', 'OCR is not supported on this device.');
+      return;
+    }
+
+    setIsOcrRunning(true);
+    setInsuranceOCR('');
+
+    try {
+      const texts = await extractTextFromImage(insuranceCardPhoto);
+      setInsuranceOCR(texts.join('\n'));
+    } catch (error) {
+      Alert.alert(
+        'OCR Error',
+        error instanceof Error ? error.message : 'Text extraction failed.'
+      );
+    } finally {
+      setIsOcrRunning(false);
+    }
+  };
+
+  const captureDocumentPhoto = async (
+    setPhoto: (uri: string) => void
+  ) => {
+    try {
+      console.log('Camera: requesting permission');
+
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          'Camera Permission',
+          'LasterDriver needs camera access to photograph your documents.'
+        );
+        return;
+      }
+
+      console.log('Camera: launching');
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      console.log('Camera: returned', result.canceled);
+
+      if (!result.canceled && result.assets?.length > 0) {
+        console.log('Camera: image URI', result.assets[0].uri);
+        setPhoto(result.assets[0].uri);
+        console.log('Camera: photo state update requested');
+      }
+    } catch (error) {
+      console.error('Camera error:', error);
+
+      Alert.alert(
+        'Camera Error',
+        error instanceof Error ? error.message : 'Unable to capture photo.'
+      );
+    }
+  };
+
+  const documentPhotoControl = (
+    title: string,
+    photo: string | null,
+    setPhoto: (uri: string) => void
+  ) => (
+    <View style={{ marginTop: 12 }}>
+      <Text style={accountStylesCommon.fieldLabel}>
+        {title}
+      </Text>
+
+      <Pressable
+        onPress={() => captureDocumentPhoto(setPhoto)}
+        style={accountStyles.photoButton}
+      >
+        <MaterialCommunityIcons
+          name="camera-outline"
+          size={20}
+          color="#FFFFFF"
+        />
+        <Text style={accountStyles.photoButtonText}>
+          {photo ? 'Retake Photo' : 'Take Photo'}
+        </Text>
+      </Pressable>
+
+      {photo && (
+        <Image
+          source={{ uri: photo }}
+          style={{
+            width: '100%',
+            height: 180,
+            marginTop: 10,
+            borderRadius: 8,
+          }}
+          resizeMode="contain"
+        />
+      )}
+    </View>
+  );
+
   const driverTrips = trips
     .filter(
       (trip) =>
@@ -94,6 +211,31 @@ export default function DriverAccountScreen() {
       void refreshTrips();
     }, [refreshTrips])
   );
+
+  useEffect(() => {
+    const recoverPendingPhoto = async () => {
+      try {
+        const result = await ImagePicker.getPendingResultAsync();
+
+        if (result && !('code' in result) && !result.canceled) {
+          const uri = result.assets?.[0]?.uri;
+
+          if (uri) {
+            console.log('Recovered camera photo:', uri);
+            setInsuranceCardPhoto(uri);
+          }
+        }
+      } catch (error) {
+        console.error('Pending photo recovery error:', error);
+      }
+    };
+
+    recoverPendingPhoto();
+  }, []);
+  
+  useEffect(() => {
+    console.log('Insurance photo state:', insuranceCardPhoto);
+  }, [insuranceCardPhoto]);
 
   useEffect(() => {
     if (driver) {
@@ -195,6 +337,34 @@ export default function DriverAccountScreen() {
     return data.publicUrl;
   };
 
+  const uploadDriverDocument = async (
+    photo: string | null,
+    driverID: string,
+    documentType: string
+  ): Promise<string> => {
+    if (!photo) {
+      throw new Error(`${documentType} photo is missing.`);
+    }
+
+    const file = new File(photo);
+    const arrayBuffer = await file.arrayBuffer();
+
+    const fileName = `${driverID}/${uuidv4()}.jpg`;
+
+    const { error } = await supabase.storage
+      .from('driver-documents')
+      .upload(fileName, arrayBuffer, {
+        contentType: 'image/jpeg',
+        upsert: false,
+      });
+
+    if (error) {
+      throw error;
+    }
+
+    return fileName;
+  };
+
   const deleteTruckPhoto = async (photoUrl: string) => {
     if (!photoUrl) {
       return;
@@ -247,9 +417,46 @@ export default function DriverAccountScreen() {
       return;
     }
 
+    if (!data.session) {
+      const { error: signInError } =
+        await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+      if (signInError) {
+        Alert.alert(
+          'Account Created',
+          'Your account was created, but you will need to log in before submitting your documents.'
+        );
+        return;
+      }
+    }
+
     let truckPhotoUrl = '';
+    let licenseFrontPath: string | null = null;
+    let licenseBackPath: string | null = null;
+    let insuranceCardPath: string | null = null;
     try {
       truckPhotoUrl = await uploadTruckPhoto();
+
+      licenseFrontPath = await uploadDriverDocument(
+        licenseFrontPhoto,
+        data.user.id,
+        'License Front'
+      );
+
+      licenseBackPath = await uploadDriverDocument(
+        licenseBackPhoto,
+        data.user.id,
+        'License Back'
+      );
+
+      insuranceCardPath = await uploadDriverDocument(
+        insuranceCardPhoto,
+        data.user.id,
+        'Insurance Card'
+      );
     } catch (error) {
       Alert.alert(
         'Photo Upload Error',
@@ -276,9 +483,12 @@ export default function DriverAccountScreen() {
         license_number: licenseNumber,
         license_state: licenseState,
         date_of_birth: dateOfBirth,
+        license_front_path: licenseFrontPath,
+        license_back_path: licenseBackPath,
         insurance_policy: insurancePolicy,
         insurance_company: insuranceCompany,
         insurance_expiration_date: insuranceExpirationDate,
+        insurance_card_path: insuranceCardPath,
         rating: null,
         number_of_ratings: 0,
         number_of_trips: 0,
@@ -287,22 +497,6 @@ export default function DriverAccountScreen() {
     if (driverError) {
       Alert.alert('Account Error', driverError.message);
       return;
-    }
-
-    if (!data.session) {
-      const { error: signInError } =
-        await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-      if (signInError) {
-        Alert.alert(
-          'Account Created',
-          'Your account was created, but you will need to log in.'
-        );
-        return;
-      }
     }
 
     setDriver({
@@ -319,9 +513,12 @@ export default function DriverAccountScreen() {
       licenseNumber,
       licenseState,
       dateOfBirth,
+      licenseFrontPath,
+      licenseBackPath,
       insurancePolicy,
       insuranceCompany,
       insuranceExpirationDate,
+      insuranceCardPath,
       rating: null,
       numberOfRatings: 0,
       numberOfTrips: 0,
@@ -341,14 +538,42 @@ export default function DriverAccountScreen() {
     }
 
     let truckPhotoUrl = '';
+    let licenseFrontPath = driver.licenseFrontPath;
+    let licenseBackPath = driver.licenseBackPath;
+    let insuranceCardPath = driver.insuranceCardPath;
+
     try {
       truckPhotoUrl = await uploadTruckPhoto();
+
+      if (licenseFrontPhoto) {
+        licenseFrontPath = await uploadDriverDocument(
+          licenseFrontPhoto,
+          driver.driverID,
+          'License Front'
+        );
+      }
+
+      if (licenseBackPhoto) {
+        licenseBackPath = await uploadDriverDocument(
+          licenseBackPhoto,
+          driver.driverID,
+          'License Back'
+        );
+      }
+
+      if (insuranceCardPhoto) {
+        insuranceCardPath = await uploadDriverDocument(
+          insuranceCardPhoto,
+          driver.driverID,
+          'Insurance Card'
+        );
+      }
     } catch (error) {
       Alert.alert(
         'Photo Upload Error',
         error instanceof Error
           ? error.message
-          : 'The truck photo could not be uploaded.'
+          : 'A photo could not be uploaded.'
       );
       return;
     }
@@ -368,9 +593,12 @@ export default function DriverAccountScreen() {
         license_number: licenseNumber,
         license_state: licenseState,
         date_of_birth: dateOfBirth,
+        license_front_path: licenseFrontPath,
+        license_back_path: licenseBackPath,
         insurance_policy: insurancePolicy,
         insurance_company: insuranceCompany,
         insurance_expiration_date: insuranceExpirationDate,
+        insurance_card_path: insuranceCardPath,
       })
       .eq('driver_id', driver.driverID);
 
@@ -414,7 +642,15 @@ export default function DriverAccountScreen() {
       insurancePolicy,
       insuranceCompany,
       insuranceExpirationDate,
+      licenseFrontPath,
+      licenseBackPath,
+      insuranceCardPath,
     });
+
+    // Clear local document selections after successful save.
+    setLicenseFrontPhoto(null);
+    setLicenseBackPhoto(null);
+    setInsuranceCardPhoto(null);
 
     Alert.alert(
       'Account Updated',
@@ -737,17 +973,6 @@ export default function DriverAccountScreen() {
           keyboardType="number-pad"
         />
 
-        <Text style={accountStylesCommon.fieldLabel}>VIN Number</Text>
-        <TextInput
-          style={accountStylesCommon.input}
-          placeholder="Enter VIN"
-          placeholderTextColor="#8F96A3"
-          value={vinNumber}
-          onChangeText={setVinNumber}
-          autoCapitalize="characters"
-          maxLength={17}
-        />
-
         <Text style={accountStylesCommon.fieldLabel}>Truck Photo</Text>
         <Pressable
           style={accountStyles.photoButton}
@@ -777,9 +1002,20 @@ export default function DriverAccountScreen() {
             size={23}
             color="#D8DCE3"
           />
-          <Text style={accountStylesCommon.sectionTitle}>Driver's License</Text>
+          <Text style={accountStylesCommon.sectionTitle}>Driver&apos;s License</Text>
         </View>
 
+        {documentPhotoControl(
+          'Front of License',
+          licenseFrontPhoto,
+          setLicenseFrontPhoto
+        )}
+
+        {documentPhotoControl(
+          'Back of License',
+          licenseBackPhoto,
+          setLicenseBackPhoto
+        )}
 
         <Text style={accountStylesCommon.fieldLabel}>
           Number
@@ -816,6 +1052,7 @@ export default function DriverAccountScreen() {
           value={dateOfBirth}
           onChangeText={setDateOfBirth}
         />
+
       </View>
       )}
 
@@ -830,6 +1067,33 @@ export default function DriverAccountScreen() {
           />
           <Text style={accountStylesCommon.sectionTitle}>Insurance</Text>
         </View>
+
+        {documentPhotoControl(
+          'Insurance Card',
+          insuranceCardPhoto,
+          setInsuranceCardPhoto
+        )}
+
+        <Pressable
+          style={accountStyles.photoButton}
+          onPress={testInsuranceOCR}
+          disabled={isOcrRunning}
+        >
+          <Text style={accountStyles.photoButtonText}>
+            {isOcrRunning ? 'Reading Document...' : 'Test OCR'}
+          </Text>
+        </Pressable>
+
+        {insuranceOCR !== '' && (
+          <View style={{ marginTop: 12 }}>
+            <Text style={accountStylesCommon.fieldLabel}>
+              Insurance – Extracted Text
+            </Text>
+            <Text style={{ color: '#FFFFFF', lineHeight: 22 }}>
+              {insuranceOCR}
+            </Text>
+          </View>
+        )}
 
         <Text style={accountStylesCommon.fieldLabel}>Company</Text>
         <TextInput
@@ -859,6 +1123,18 @@ export default function DriverAccountScreen() {
           keyboardType="numbers-and-punctuation"
           maxLength={10}
         />
+
+        <Text style={accountStylesCommon.fieldLabel}>VIN Number</Text>
+        <TextInput
+          style={accountStylesCommon.input}
+          placeholder="Enter VIN"
+          placeholderTextColor="#8F96A3"
+          value={vinNumber}
+          onChangeText={setVinNumber}
+          autoCapitalize="characters"
+          maxLength={17}
+        />
+
       </View>
       )}
 
