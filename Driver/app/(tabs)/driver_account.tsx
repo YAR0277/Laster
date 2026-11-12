@@ -28,7 +28,6 @@ import { useDriver } from '../../data/driver';
 import { useTrip } from '../../data/trip';
 import { supabase } from '../../lib/supabase';
 
-
 export default function DriverAccountScreen() {
   const router = useRouter();
   const { driver, setDriver } = useDriver();
@@ -46,17 +45,15 @@ export default function DriverAccountScreen() {
   const [truckPhoto, setTruckPhoto] = useState<string | null>(
     driver?.truckPhoto || null
   );
+  const [licenseExpirationDate, setLicenseExpirationDate] = useState('');
   const [licenseNumber, setLicenseNumber] = useState('');
   const [licenseState, setLicenseState] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
-  const [licenseFrontPhoto, setLicenseFrontPhoto] = useState<string | null>(null);
-  const [licenseBackPhoto, setLicenseBackPhoto] = useState<string | null>(null);
   const [insurancePolicy, setInsurancePolicy] = useState('');
   const [insuranceCompany, setInsuranceCompany] = useState('');
   const [insuranceExpirationDate, setInsuranceExpirationDate] = useState('');
   const [insuranceCardPhoto, setInsuranceCardPhoto] = useState<string | null>(null);
-  const [accountMode, setAccountMode] =
-    useState<'login' | 'open'>('login');
+  const [accountMode, setAccountMode] = useState<'login' | 'open'>('login');
   const hasAccount = supabaseAuthUser !== null && driver !== null;
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [payoutStatus, setPayoutStatus] = useState<
@@ -133,8 +130,8 @@ export default function DriverAccountScreen() {
 
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
-        quality: 0.8,
+        allowsEditing: false,
+        quality: 1,
       });
 
       console.log('Camera: returned', result.canceled);
@@ -232,7 +229,7 @@ export default function DriverAccountScreen() {
 
     recoverPendingPhoto();
   }, []);
-  
+
   useEffect(() => {
     console.log('Insurance photo state:', insuranceCardPhoto);
   }, [insuranceCardPhoto]);
@@ -248,6 +245,7 @@ export default function DriverAccountScreen() {
       setYear(driver.year);
       setVinNumber(driver.vinNumber);
       setTruckPhoto(driver.truckPhoto);
+      setLicenseExpirationDate(driver.licenseExpirationDate);
       setLicenseNumber(driver.licenseNumber);
       setLicenseState(driver.licenseState);
       setDateOfBirth(driver.dateOfBirth);
@@ -264,6 +262,7 @@ export default function DriverAccountScreen() {
       setYear('');
       setVinNumber('');
       setTruckPhoto('');
+      setLicenseExpirationDate('');
       setLicenseNumber('');
       setLicenseState('');
       setDateOfBirth('');
@@ -434,23 +433,9 @@ export default function DriverAccountScreen() {
     }
 
     let truckPhotoUrl = '';
-    let licenseFrontPath: string | null = null;
-    let licenseBackPath: string | null = null;
     let insuranceCardPath: string | null = null;
     try {
       truckPhotoUrl = await uploadTruckPhoto();
-
-      licenseFrontPath = await uploadDriverDocument(
-        licenseFrontPhoto,
-        data.user.id,
-        'License Front'
-      );
-
-      licenseBackPath = await uploadDriverDocument(
-        licenseBackPhoto,
-        data.user.id,
-        'License Back'
-      );
 
       insuranceCardPath = await uploadDriverDocument(
         insuranceCardPhoto,
@@ -480,11 +465,10 @@ export default function DriverAccountScreen() {
         year,
         vin_number: vinNumber,
         truck_photo: truckPhotoUrl,
+        license_expiration_date: licenseExpirationDate,
         license_number: licenseNumber,
         license_state: licenseState,
         date_of_birth: dateOfBirth,
-        license_front_path: licenseFrontPath,
-        license_back_path: licenseBackPath,
         insurance_policy: insurancePolicy,
         insurance_company: insuranceCompany,
         insurance_expiration_date: insuranceExpirationDate,
@@ -510,11 +494,10 @@ export default function DriverAccountScreen() {
       year,
       vinNumber,
       truckPhoto: truckPhotoUrl,
+      licenseExpirationDate,
       licenseNumber,
       licenseState,
       dateOfBirth,
-      licenseFrontPath,
-      licenseBackPath,
       insurancePolicy,
       insuranceCompany,
       insuranceExpirationDate,
@@ -538,28 +521,10 @@ export default function DriverAccountScreen() {
     }
 
     let truckPhotoUrl = '';
-    let licenseFrontPath = driver.licenseFrontPath;
-    let licenseBackPath = driver.licenseBackPath;
     let insuranceCardPath = driver.insuranceCardPath;
 
     try {
       truckPhotoUrl = await uploadTruckPhoto();
-
-      if (licenseFrontPhoto) {
-        licenseFrontPath = await uploadDriverDocument(
-          licenseFrontPhoto,
-          driver.driverID,
-          'License Front'
-        );
-      }
-
-      if (licenseBackPhoto) {
-        licenseBackPath = await uploadDriverDocument(
-          licenseBackPhoto,
-          driver.driverID,
-          'License Back'
-        );
-      }
 
       if (insuranceCardPhoto) {
         insuranceCardPath = await uploadDriverDocument(
@@ -590,11 +555,10 @@ export default function DriverAccountScreen() {
         vin_number: vinNumber,
         year,
         truck_photo: truckPhotoUrl,
+        license_expiration_date: licenseExpirationDate,
         license_number: licenseNumber,
         license_state: licenseState,
         date_of_birth: dateOfBirth,
-        license_front_path: licenseFrontPath,
-        license_back_path: licenseBackPath,
         insurance_policy: insurancePolicy,
         insurance_company: insuranceCompany,
         insurance_expiration_date: insuranceExpirationDate,
@@ -636,20 +600,17 @@ export default function DriverAccountScreen() {
       vinNumber,
       year,
       truckPhoto: truckPhotoUrl,
+      licenseExpirationDate,
       licenseNumber,
       licenseState,
       dateOfBirth,
       insurancePolicy,
       insuranceCompany,
       insuranceExpirationDate,
-      licenseFrontPath,
-      licenseBackPath,
       insuranceCardPath,
     });
 
     // Clear local document selections after successful save.
-    setLicenseFrontPhoto(null);
-    setLicenseBackPhoto(null);
     setInsuranceCardPhoto(null);
 
     Alert.alert(
@@ -818,7 +779,7 @@ export default function DriverAccountScreen() {
               <Text style={accountStylesCommon.accountName}>
                 {driver.firstName}
               </Text>
-            )}            
+            )}
           </Pressable>
         </View>
       </View>
@@ -996,64 +957,53 @@ export default function DriverAccountScreen() {
       {/* Driver's License */}
       {(hasAccount || accountMode === 'open') && (
         <View style={accountStylesCommon.section}>
-        <View style={accountStylesCommon.sectionHeading}>
-          <MaterialCommunityIcons
-            name="card-account-details-outline"
-            size={23}
-            color="#D8DCE3"
+          <View style={accountStylesCommon.sectionHeading}>
+            <MaterialCommunityIcons
+              name="card-account-details-outline"
+              size={23}
+              color="#D8DCE3"
+            />
+            <Text style={accountStylesCommon.sectionTitle}>
+              Driver&apos;s License
+            </Text>
+          </View>
+
+          <Text style={accountStylesCommon.fieldLabel}>Number</Text>
+          <TextInput
+            style={accountStylesCommon.input}
+            placeholder="Enter license number"
+            placeholderTextColor="#888"
+            value={licenseNumber}
+            onChangeText={setLicenseNumber}
           />
-          <Text style={accountStylesCommon.sectionTitle}>Driver&apos;s License</Text>
+
+          <Text style={accountStylesCommon.fieldLabel}>Expiration Date</Text>
+          <TextInput
+            style={accountStylesCommon.input}
+            placeholder="MM/DD/YYYY"
+            placeholderTextColor="#888"
+            value={licenseExpirationDate}
+            onChangeText={setLicenseExpirationDate}
+          />
+
+          <Text style={accountStylesCommon.fieldLabel}>State</Text>
+          <TextInput
+            style={accountStylesCommon.input}
+            placeholder="Enter license state"
+            placeholderTextColor="#888"
+            value={licenseState}
+            onChangeText={setLicenseState}
+          />
+
+          <Text style={accountStylesCommon.fieldLabel}>Date of Birth</Text>
+          <TextInput
+            style={accountStylesCommon.input}
+            placeholder="MM/DD/YYYY"
+            placeholderTextColor="#888"
+            value={dateOfBirth}
+            onChangeText={setDateOfBirth}
+          />
         </View>
-
-        {documentPhotoControl(
-          'Front of License',
-          licenseFrontPhoto,
-          setLicenseFrontPhoto
-        )}
-
-        {documentPhotoControl(
-          'Back of License',
-          licenseBackPhoto,
-          setLicenseBackPhoto
-        )}
-
-        <Text style={accountStylesCommon.fieldLabel}>
-          Number
-        </Text>
-
-        <TextInput
-          style={accountStylesCommon.input}
-          placeholder="Enter license number"
-          placeholderTextColor="#888"
-          value={licenseNumber}
-          onChangeText={setLicenseNumber}
-        />
-
-        <Text style={accountStylesCommon.fieldLabel}>
-          State
-        </Text>
-
-        <TextInput
-          style={accountStylesCommon.input}
-          placeholder="Enter license state"
-          placeholderTextColor="#888"
-          value={licenseState}
-          onChangeText={setLicenseState}
-        />
-
-        <Text style={accountStylesCommon.fieldLabel}>
-          Date of Birth
-        </Text>
-
-        <TextInput
-          style={accountStylesCommon.input}
-          placeholder="MM/DD/YYYY"
-          placeholderTextColor="#888"
-          value={dateOfBirth}
-          onChangeText={setDateOfBirth}
-        />
-
-      </View>
       )}
 
       {/* Insurance */}
@@ -1235,7 +1185,7 @@ export default function DriverAccountScreen() {
                   <Text style={accountStylesCommon.tripRoute}>
                     Status: {trip.status}
                   </Text>
-                  
+
                   {trip.customerFirstName && (
                     <Text style={accountStylesCommon.tripRoute}>
                       Customer: {trip.customerFirstName}

@@ -23,8 +23,7 @@ export type Driver = {
   licenseNumber: string;
   licenseState: string;
   dateOfBirth: string;
-  licenseFrontPath: string | null;
-  licenseBackPath: string | null;
+  licenseExpirationDate: string;
   insurancePolicy: string;
   insuranceCompany: string;
   insuranceExpirationDate: string;
@@ -84,11 +83,10 @@ export function DriverProvider({ children }: { children: ReactNode }) {
         year: data.year,
         vinNumber: data.vin_number,
         truckPhoto: data.truck_photo,
+        licenseExpirationDate: data.license_expiration_date,
         licenseNumber: data.license_number,
         licenseState: data.license_state,
         dateOfBirth: data.date_of_birth,
-        licenseFrontPath: data.license_front_path,
-        licenseBackPath: data.license_back_path,
         insurancePolicy: data.insurance_policy,
         insuranceCompany: data.insurance_company,
         insuranceExpirationDate: data.insurance_expiration_date,
