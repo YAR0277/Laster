@@ -1,9 +1,5 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import {
-  extractTextFromImage,
-  isSupported,
-} from 'expo-text-extractor';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
@@ -51,6 +47,7 @@ export default function DriverAccountScreen() {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [insurancePolicy, setInsurancePolicy] = useState('');
   const [insuranceCompany, setInsuranceCompany] = useState('');
+  const [insuranceProviderFocused, setInsuranceProviderFocused] = useState(false);
   const [insuranceExpirationDate, setInsuranceExpirationDate] = useState('');
   const [insuranceCardPhoto, setInsuranceCardPhoto] = useState<string | null>(null);
   const [accountMode, setAccountMode] = useState<'login' | 'open'>('login');
@@ -59,8 +56,6 @@ export default function DriverAccountScreen() {
   const [payoutStatus, setPayoutStatus] = useState<
     'checking' | 'required' | 'ready' | 'restricted' | 'error'
   >('checking');
-  const [insuranceOCR, setInsuranceOCR] = useState('');
-  const [isOcrRunning, setIsOcrRunning] = useState(false);
 
   const formatTripDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -80,33 +75,6 @@ export default function DriverAccountScreen() {
 
     if (!result.canceled) {
       setTruckPhoto(result.assets[0].uri);
-    }
-  };
-
-  const testInsuranceOCR = async () => {
-    if (!insuranceCardPhoto) {
-      Alert.alert('Missing Photo', 'Please select an insurance card photo first.');
-      return;
-    }
-
-    if (!isSupported) {
-      Alert.alert('OCR Unavailable', 'OCR is not supported on this device.');
-      return;
-    }
-
-    setIsOcrRunning(true);
-    setInsuranceOCR('');
-
-    try {
-      const texts = await extractTextFromImage(insuranceCardPhoto);
-      setInsuranceOCR(texts.join('\n'));
-    } catch (error) {
-      Alert.alert(
-        'OCR Error',
-        error instanceof Error ? error.message : 'Text extraction failed.'
-      );
-    } finally {
-      setIsOcrRunning(false);
     }
   };
 
@@ -229,10 +197,6 @@ export default function DriverAccountScreen() {
 
     recoverPendingPhoto();
   }, []);
-
-  useEffect(() => {
-    console.log('Insurance photo state:', insuranceCardPhoto);
-  }, [insuranceCardPhoto]);
 
   useEffect(() => {
     if (driver) {
@@ -1009,84 +973,70 @@ export default function DriverAccountScreen() {
       {/* Insurance */}
       {(hasAccount || accountMode === 'open') && (
         <View style={accountStylesCommon.section}>
-        <View style={accountStylesCommon.sectionHeading}>
-          <MaterialCommunityIcons
-            name="shield-check-outline"
-            size={23}
-            color="#D8DCE3"
-          />
-          <Text style={accountStylesCommon.sectionTitle}>Insurance</Text>
-        </View>
-
-        {documentPhotoControl(
-          'Insurance Card',
-          insuranceCardPhoto,
-          setInsuranceCardPhoto
-        )}
-
-        <Pressable
-          style={accountStyles.photoButton}
-          onPress={testInsuranceOCR}
-          disabled={isOcrRunning}
-        >
-          <Text style={accountStyles.photoButtonText}>
-            {isOcrRunning ? 'Reading Document...' : 'Test OCR'}
-          </Text>
-        </Pressable>
-
-        {insuranceOCR !== '' && (
-          <View style={{ marginTop: 12 }}>
-            <Text style={accountStylesCommon.fieldLabel}>
-              Insurance – Extracted Text
-            </Text>
-            <Text style={{ color: '#FFFFFF', lineHeight: 22 }}>
-              {insuranceOCR}
+          <View style={accountStylesCommon.sectionHeading}>
+            <MaterialCommunityIcons
+              name="shield-check-outline"
+              size={23}
+              color="#D8DCE3"
+            />
+            <Text style={accountStylesCommon.sectionTitle}>
+              Insurance
             </Text>
           </View>
-        )}
 
-        <Text style={accountStylesCommon.fieldLabel}>Company</Text>
-        <TextInput
-          style={accountStylesCommon.input}
-          placeholder="Enter insurance company"
-          placeholderTextColor="#888"
-          value={insuranceCompany}
-          onChangeText={setInsuranceCompany}
-        />
+          <Text style={accountStylesCommon.fieldLabel}>
+            Insurance Provider
+          </Text>
+          <TextInput
+            style={accountStylesCommon.input}
+            placeholder="Enter insurance provider"
+            placeholderTextColor="#888"
+            value={insuranceCompany}
+            onChangeText={setInsuranceCompany}
+            selection={insuranceProviderFocused ? undefined : { start: 0, end: 0 }}
+            onFocus={() => setInsuranceProviderFocused(true)}
+            onBlur={() => setInsuranceProviderFocused(false)}
+          />
 
-        <Text style={accountStylesCommon.fieldLabel}>Policy Number</Text>
-        <TextInput
-          style={accountStylesCommon.input}
-          placeholder="Enter policy number"
-          placeholderTextColor="#888"
-          value={insurancePolicy}
-          onChangeText={setInsurancePolicy}
-        />
+          <Text style={accountStylesCommon.fieldLabel}>
+            Policy Number
+          </Text>
+          <TextInput
+            style={accountStylesCommon.input}
+            placeholder="Enter policy number"
+            placeholderTextColor="#888"
+            value={insurancePolicy}
+            onChangeText={setInsurancePolicy}
+          />
 
-        <Text style={accountStylesCommon.fieldLabel}>Expiration Date</Text>
-        <TextInput
-          style={accountStylesCommon.input}
-          placeholder="MM/DD/YYYY"
-          placeholderTextColor="#8F96A3"
-          value={insuranceExpirationDate}
-          onChangeText={setInsuranceExpirationDate}
-          keyboardType="numbers-and-punctuation"
-          maxLength={10}
-        />
+          <Text style={accountStylesCommon.fieldLabel}>
+            Expiration Date
+          </Text>
+          <TextInput
+            style={accountStylesCommon.input}
+            placeholder="MM/DD/YYYY"
+            placeholderTextColor="#8F96A3"
+            value={insuranceExpirationDate}
+            onChangeText={setInsuranceExpirationDate}
+            keyboardType="numbers-and-punctuation"
+            maxLength={10}
+          />
 
-        <Text style={accountStylesCommon.fieldLabel}>VIN Number</Text>
-        <TextInput
-          style={accountStylesCommon.input}
-          placeholder="Enter VIN"
-          placeholderTextColor="#8F96A3"
-          value={vinNumber}
-          onChangeText={setVinNumber}
-          autoCapitalize="characters"
-          maxLength={17}
-        />
-
-      </View>
+          <Text style={accountStylesCommon.fieldLabel}>
+            VIN Number
+          </Text>
+          <TextInput
+            style={accountStylesCommon.input}
+            placeholder="Enter VIN"
+            placeholderTextColor="#8F96A3"
+            value={vinNumber}
+            onChangeText={setVinNumber}
+            autoCapitalize="characters"
+            maxLength={17}
+          />
+        </View>
       )}
+
 
       {/* Update Account */}
       {hasAccount && (
