@@ -19,6 +19,7 @@ import {
 import { styles as accountStylesCommon } from '../../../Common/src/components/account';
 import { styles as commonStyles } from '../../../Common/src/components/common';
 import { styles as accountStyles } from '../../components/customer_account';
+import CustomerAccountButton from '../../components/CustomerAccountButton';
 import { useAuth } from '../../data/auth';
 import { useCustomer } from '../../data/customer';
 import { useTrip } from '../../data/trip';
@@ -385,23 +386,7 @@ export default function CustomerAccountScreen() {
               Manage your Customer account
             </Text>
           </View>
-
-          <Pressable
-            style={accountStylesCommon.accountButton}
-            onPress={() => router.push('/customer_account?mode=default')}
-          >
-            <MaterialCommunityIcons
-              name={customer ? 'account-check' : 'account-outline'}
-              size={30}
-              color={customer ? '#F59E0B' : '#B8BCC4'}
-            />
-
-            {customer && (
-              <Text style={accountStylesCommon.accountName}>
-                {customer.firstName}
-              </Text>
-            )}
-          </Pressable>
+          <CustomerAccountButton />
         </View>
       </View>
 

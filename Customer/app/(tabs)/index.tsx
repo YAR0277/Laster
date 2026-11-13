@@ -3,6 +3,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { styles as commonStyles } from '../../../Common/src/components/common';
+import CustomerAccountButton from '../../components/CustomerAccountButton';
 import { styles as indexStyles } from '../../components/index';
 import { useAuth } from '../../data/auth';
 import { useCustomer } from '../../data/customer';
@@ -166,37 +167,7 @@ export default function HomeScreen() {
           />
           <Text style={indexStyles.headerTitle}>Laster</Text>
         </View>
-
-        <Pressable
-          style={indexStyles.headerSide}
-          onPress={() => router.push('/customer_account?mode=default')}
-        >
-          <MaterialCommunityIcons
-            name={
-              customer
-                ? 'account-check'
-                : 'account-outline'
-            }
-            size={30}
-            color={
-              customer
-                ? '#F59E0B'
-                : '#B8BCC4'
-            }
-          />
-
-          {customer && (
-            <Text
-              style={{
-                color: '#B8BCC4',
-                fontSize: 11,
-                marginTop: 2,
-              }}
-            >
-              {customer.firstName}
-            </Text>
-          )}
-        </Pressable>
+        <CustomerAccountButton style={indexStyles.headerSide} />
       </View>
 
       {/* Main actions */}
