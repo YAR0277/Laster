@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -38,6 +38,8 @@ export default function DriverAccountScreen() {
   const [model, setModel] = useState('');
   const [year, setYear] = useState('');
   const [vinNumber, setVinNumber] = useState('');
+  const [vinVerification, setVinVerification] = useState('');
+  const [isVerifyingVin, setIsVerifyingVin] = useState(false);  
   const [truckPhoto, setTruckPhoto] = useState<string | null>(
     driver?.truckPhoto || null
   );
@@ -48,6 +50,7 @@ export default function DriverAccountScreen() {
   const [insurancePolicy, setInsurancePolicy] = useState('');
   const [insuranceCompany, setInsuranceCompany] = useState('');
   const [insuranceProviderFocused, setInsuranceProviderFocused] = useState(false);
+  const insuranceProviderRef = useRef<TextInput>(null);
   const [insuranceExpirationDate, setInsuranceExpirationDate] = useState('');
   const [insuranceCardPhoto, setInsuranceCardPhoto] = useState<string | null>(null);
   const [accountMode, setAccountMode] = useState<'login' | 'open'>('login');
@@ -119,6 +122,49 @@ export default function DriverAccountScreen() {
     }
   };
 
+  const verifyVin = async () => {
+    const vin = vinNumber.trim().toUpperCase();
+
+    // Check format: 17 characters, excluding I, O, and Q.
+    if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) {
+      setVinVerification(
+        'Invalid VIN. Enter 17 characters; I, O, and Q are not allowed.'
+      );
+      return;
+    }
+
+    setIsVerifyingVin(true);
+    setVinVerification('Checking VIN...');
+
+    try {
+      const response = await fetch(
+        `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vin}?format=json`
+      );
+
+      if (!response.ok) {
+        throw new Error('VIN lookup failed.');
+      }
+
+      const data = await response.json();
+      const vehicle = data.Results?.[0];
+
+      if (!vehicle?.Make || !vehicle?.Model) {
+        setVinVerification('VIN could not be verified by NHTSA.');
+        return;
+      }
+
+      setVinVerification(
+        `Verified: ${vehicle.ModelYear || 'Year unknown'} ${vehicle.Make} ${vehicle.Model}`
+      );
+    } catch (error) {
+      setVinVerification(
+        'Unable to verify VIN. Please try again.'
+      );
+    } finally {
+      setIsVerifyingVin(false);
+    }
+  };
+
   const documentPhotoControl = (
     title: string,
     photo: string | null,
@@ -176,6 +222,14 @@ export default function DriverAccountScreen() {
       void refreshTrips();
     }, [refreshTrips])
   );
+
+  useEffect(() => {
+    if (!insuranceProviderFocused) {
+      insuranceProviderRef.current?.setNativeProps({
+        selection: { start: 0, end: 0 },
+      });
+    }
+  }, [insuranceCompany, insuranceProviderFocused]);
 
   useEffect(() => {
     const recoverPendingPhoto = async () => {
@@ -898,6 +952,28 @@ export default function DriverAccountScreen() {
           keyboardType="number-pad"
         />
 
+        <Text style={accountStylesCommon.fieldLabel}>VIN Number</Text>
+        <TextInput
+          style={accountStylesCommon.input}
+          placeholder="Enter VIN"
+          placeholderTextColor="#8F96A3"
+          value={vinNumber}
+          onChangeText={(value) => {
+            setVinNumber(value.toUpperCase());
+            setVinVerification('');
+          }}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          maxLength={17}
+          onEndEditing={verifyVin}
+        />
+
+        {vinVerification !== '' && (
+          <Text style={{ color: vinVerification.startsWith('Verified:') ? '#328F7D' : '#D9534F', marginTop: 6 }}>
+            {isVerifyingVin ? 'Checking VIN...' : vinVerification}
+          </Text>
+        )}
+
         <Text style={accountStylesCommon.fieldLabel}>Truck Photo</Text>
         <Pressable
           style={accountStyles.photoButton}
@@ -979,28 +1055,22 @@ export default function DriverAccountScreen() {
               size={23}
               color="#D8DCE3"
             />
-            <Text style={accountStylesCommon.sectionTitle}>
-              Insurance
-            </Text>
+            <Text style={accountStylesCommon.sectionTitle}>Insurance</Text>
           </View>
 
-          <Text style={accountStylesCommon.fieldLabel}>
-            Insurance Provider
-          </Text>
+          <Text style={accountStylesCommon.fieldLabel}>Insurance Provider</Text>
           <TextInput
+            ref={insuranceProviderRef}
             style={accountStylesCommon.input}
             placeholder="Enter insurance provider"
             placeholderTextColor="#888"
             value={insuranceCompany}
             onChangeText={setInsuranceCompany}
-            selection={insuranceProviderFocused ? undefined : { start: 0, end: 0 }}
             onFocus={() => setInsuranceProviderFocused(true)}
             onBlur={() => setInsuranceProviderFocused(false)}
           />
 
-          <Text style={accountStylesCommon.fieldLabel}>
-            Policy Number
-          </Text>
+          <Text style={accountStylesCommon.fieldLabel}>Policy Number</Text>
           <TextInput
             style={accountStylesCommon.input}
             placeholder="Enter policy number"
@@ -1009,9 +1079,7 @@ export default function DriverAccountScreen() {
             onChangeText={setInsurancePolicy}
           />
 
-          <Text style={accountStylesCommon.fieldLabel}>
-            Expiration Date
-          </Text>
+          <Text style={accountStylesCommon.fieldLabel}>Expiration Date</Text>
           <TextInput
             style={accountStylesCommon.input}
             placeholder="MM/DD/YYYY"
@@ -1020,19 +1088,6 @@ export default function DriverAccountScreen() {
             onChangeText={setInsuranceExpirationDate}
             keyboardType="numbers-and-punctuation"
             maxLength={10}
-          />
-
-          <Text style={accountStylesCommon.fieldLabel}>
-            VIN Number
-          </Text>
-          <TextInput
-            style={accountStylesCommon.input}
-            placeholder="Enter VIN"
-            placeholderTextColor="#8F96A3"
-            value={vinNumber}
-            onChangeText={setVinNumber}
-            autoCapitalize="characters"
-            maxLength={17}
           />
         </View>
       )}

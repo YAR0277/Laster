@@ -87,7 +87,7 @@ export default function HomeScreen() {
 
         <View style={indexStyles.headerBrand}>
           <Image
-            source={require('../../assets/images/laster-icon-transparent.png')}
+            source={require('../../assets/images/laster-driver-icon-transparent.png')}
             style={indexStyles.headerLogo}
           />
           <Text style={indexStyles.headerTitle}>Laster Driver</Text>
