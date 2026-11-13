@@ -65,7 +65,21 @@ export function TripProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refreshTrips();
-  }, [refreshTrips]);
+
+    // Refresh periodically so customers see driver updates
+    // without having to log out and back in.
+    if (authLoading) {
+      return;
+    }
+
+    const refreshInterval = setInterval(() => {
+      void refreshTrips();
+    }, 10_000);
+
+    return () => {
+      clearInterval(refreshInterval);
+    };
+  }, [refreshTrips, authLoading]);
 
   return (
     <TripContext.Provider value={{ trips, setTrips, refreshTrips }}>
