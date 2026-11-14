@@ -16,7 +16,7 @@
       "package": "com.laster.driver",
       "adaptiveIcon": {
         "backgroundColor": "#263746",
-        "foregroundImage": "./assets/images/laster-icon-transparent.png",
+        "foregroundImage": "./assets/images/laster-icon-transparent.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false

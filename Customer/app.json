@@ -1,7 +1,8 @@
 {
   "expo": {
     "name": "Laster",
-    "slug": "Laster",
+    "slug": "laster",
+    "owner": "laster-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/laster-icon-transparent.png",
@@ -15,7 +16,7 @@
       "package": "com.laster.customer",
       "adaptiveIcon": {
         "backgroundColor": "#263746",
-        "foregroundImage": "./assets/images/laster-icon-transparent.png",
+        "foregroundImage": "./assets/images/laster-icon-transparent.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
@@ -49,6 +50,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "14866477-3da2-498b-9643-414b7e22bacf"
+      }
     }
   }
 }
