@@ -5,11 +5,16 @@
   "workspaces": [
     "Customer",
     "Driver",
-    "Common"
+    "Common",
+    "Admin"
   ],
   "scripts": {
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "admin": "npm run dev --workspace=admin",
+    "admin:build": "npm run build --workspace=admin",
+    "admin:lint": "npm run lint --workspace=admin",
+    "admin:preview": "npm run preview --workspace=admin"
   },
   "dependencies": {
     "expo": "~54.0.37",
