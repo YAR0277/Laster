@@ -376,7 +376,9 @@ export default function DriverScreen() {
         <View style={accountStylesCommon.pageHeaderContent}>
           <View style={accountStylesCommon.pageHeaderText}>
             <Text style={accountStylesCommon.pageSubtitle}>
-              {!hasAccount && (
+              {hasAccount ? (
+                'Browse available trips'
+              ) : (
                 <>
                   To view trips{' '}
                   <Text

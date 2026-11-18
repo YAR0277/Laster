@@ -784,7 +784,7 @@ export default function DriverAccountScreen() {
         <View style={accountStylesCommon.pageHeaderContent}>
           <View style={accountStylesCommon.pageHeaderText}>
             <Text style={accountStylesCommon.pageSubtitle}>
-              Manage your Driver account
+              Manage your account
             </Text>
           </View>
 
