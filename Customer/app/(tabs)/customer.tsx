@@ -596,7 +596,7 @@ export default function RenterScreen() {
           <View style={accountStylesCommon.pageHeaderText}>
             <Text style={accountStylesCommon.pageSubtitle}>
               {customer
-                ? 'Request and manage your trips'
+                ? 'Request and manage trips'
                 : (
                   <>
                     <Text

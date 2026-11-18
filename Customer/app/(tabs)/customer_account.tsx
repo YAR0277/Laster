@@ -383,7 +383,7 @@ export default function CustomerAccountScreen() {
         <View style={accountStylesCommon.pageHeaderContent}>
           <View style={accountStylesCommon.pageHeaderText}>
             <Text style={accountStylesCommon.pageSubtitle}>
-              Manage your Customer account
+              Manage your account
             </Text>
           </View>
           <CustomerAccountButton />
