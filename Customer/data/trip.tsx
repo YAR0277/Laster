@@ -8,7 +8,6 @@ import {
 } from 'react';
 
 import { mapTripRow } from '@laster/common';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './auth';
 import { useCustomer } from './customer';
@@ -24,27 +23,17 @@ type TripContextType = {
 
 const TripContext = createContext<TripContextType | undefined>(undefined);
 
-
 export function TripProvider({ children }: { children: ReactNode }) {
   const { user: supabaseAuthUser, loading: authLoading } = useAuth();
   const { customer } = useCustomer();
   const [trips, setTrips] = useState<Trip[]>([]);
+  const customerID = customer?.customerID ?? null;
+  const authUserID = supabaseAuthUser?.id ?? null;
 
   const refreshTrips = useCallback(async () => {
-    if (authLoading) {
-      return;
-    }
+    if (authLoading) return;
 
-    let customerID = customer?.customerID ?? null;
-
-    // Guest customer
-    if (!customerID && !supabaseAuthUser) {
-      customerID = await AsyncStorage.getItem(
-        'laster_guest_customer_id'
-      );
-    }
-
-    if (!customerID) {
+    if (!customerID || !authUserID) {
       setTrips([]);
       return;
     }
@@ -61,26 +50,77 @@ export function TripProvider({ children }: { children: ReactNode }) {
     }
 
     setTrips(data.map(mapTripRow));
-  }, [authLoading, customer, supabaseAuthUser]);
+  }, [authLoading, customerID, authUserID]);
 
   useEffect(() => {
-    void refreshTrips();
+    if (authLoading || !customerID || !authUserID) return;
 
-    // Refresh periodically so customers see driver updates
-    // without having to log out and back in.
-    if (authLoading) {
-      return;
-    }
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    const refreshInterval = setInterval(() => {
-      void refreshTrips();
-    }, 10_000);
+    const setupTripUpdates = async () => {
+      // Load the customer's trips initially.
+      await refreshTrips();
+
+      if (cancelled) return;
+
+      channel = supabase
+        .channel(`customer-trips-${customerID}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'trips',
+            filter: `customer_id=eq.${customerID}`,
+          },
+          (payload) => {
+            const updatedTrip = mapTripRow(
+              payload.new as Parameters<typeof mapTripRow>[0]
+            );
+
+            console.log(
+              'Customer received trip update:',
+              updatedTrip.tripID,
+              updatedTrip.status
+            );
+
+            setTrips((currentTrips) => {
+              const index = currentTrips.findIndex(
+                (trip) => trip.tripID === updatedTrip.tripID
+              );
+
+              if (index === -1) {
+                return [...currentTrips, updatedTrip];
+              }
+
+              return currentTrips.map((trip) =>
+                trip.tripID === updatedTrip.tripID
+                  ? updatedTrip
+                  : trip
+              );
+            });
+          }
+        )
+        .subscribe((status, error) => {
+          console.log('Customer trip Realtime status:', status);
+
+          if (error) {
+            console.error('Customer trip Realtime error:', error);
+          }
+        });
+    };
+
+    void setupTripUpdates();
 
     return () => {
-      clearInterval(refreshInterval);
-    };
-  }, [refreshTrips, authLoading]);
+      cancelled = true;
 
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
+    };
+  }, [authLoading, refreshTrips, customerID, authUserID]);
   return (
     <TripContext.Provider value={{ trips, setTrips, refreshTrips }}>
       {children}
