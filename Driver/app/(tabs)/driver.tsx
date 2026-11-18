@@ -28,6 +28,7 @@ export default function DriverScreen() {
   const [startingTripID, setStartingTripID] = useState<string | null>(null);
   const [abortingTripID, setAbortingTripID] = useState<string | null>(null);
   const hasAccount = !driverLoading && driver !== null;
+  const accountStatusApproved = driver?.accountStatus === true;
 
   const hasAcceptedTrip = trips.some(
     (trip) =>
@@ -41,6 +42,14 @@ export default function DriverScreen() {
       !driver ||
       acceptingTripID !== null
     ) {
+      return;
+    }
+
+    if (!driver.accountStatus) {
+      Alert.alert(
+        'Account Not Approved',
+        'Your account must be fully approved before you can accept trips. Please check your license, insurance, and payout verification status.'
+      );
       return;
     }
 
@@ -485,6 +494,7 @@ export default function DriverScreen() {
           {/* Accept Trip */}
           {trip.status === 'Requested' &&
             hasAccount &&
+            accountStatusApproved &&
             !hasAcceptedTrip && (
               <Pressable
                 style={[

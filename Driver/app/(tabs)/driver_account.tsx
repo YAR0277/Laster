@@ -523,6 +523,10 @@ export default function DriverAccountScreen() {
       rating: null,
       numberOfRatings: 0,
       numberOfTrips: 0,
+      licenseStatus: false,
+      insuranceStatus: false,
+      payoutStatus: false,
+      accountStatus: false,      
     });
 
     setPassword('');
@@ -1006,6 +1010,14 @@ export default function DriverAccountScreen() {
             <Text style={accountStylesCommon.sectionTitle}>
               Driver&apos;s License
             </Text>
+            {hasAccount && (
+              <MaterialCommunityIcons
+                name={driver?.licenseStatus ? 'check-circle' : 'circle-outline'}
+                size={22}
+                color={driver?.licenseStatus ? '#328F7D' : '#8F96A3'}
+                style={{ marginLeft: 'auto' }}
+              />
+            )}
           </View>
 
           <Text style={accountStylesCommon.fieldLabel}>Number</Text>
@@ -1056,6 +1068,14 @@ export default function DriverAccountScreen() {
               color="#D8DCE3"
             />
             <Text style={accountStylesCommon.sectionTitle}>Insurance</Text>
+            {hasAccount && (
+              <MaterialCommunityIcons
+                name={driver?.insuranceStatus ? 'check-circle' : 'circle-outline'}
+                size={22}
+                color={driver?.insuranceStatus ? '#328F7D' : '#8F96A3'}
+                style={{ marginLeft: 'auto' }}
+              />
+            )}
           </View>
 
           <Text style={accountStylesCommon.fieldLabel}>Insurance Provider</Text>
@@ -1117,6 +1137,12 @@ export default function DriverAccountScreen() {
             <Text style={accountStylesCommon.sectionTitle}>
               Payout Settings
             </Text>
+            <MaterialCommunityIcons
+              name={driver?.payoutStatus ? 'check-circle' : 'circle-outline'}
+              size={22}
+              color={driver?.payoutStatus ? '#328F7D' : '#8F96A3'}
+              style={{ marginLeft: 'auto' }}
+            />
           </View>
 
           <Text style={accountStyles.payoutDescription}>

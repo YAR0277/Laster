@@ -31,6 +31,10 @@ export type Driver = {
   rating: number | null;
   numberOfRatings: number;
   numberOfTrips: number;
+  licenseStatus: boolean;
+  insuranceStatus: boolean;
+  payoutStatus: boolean;
+  accountStatus: boolean;  
 };
 
 type DriverContextType = {
@@ -48,6 +52,7 @@ export function DriverProvider({ children }: { children: ReactNode }) {
   const [driver, setDriver] = useState<Driver | null>(null);
   const [loading, setLoading] = useState(true);
 
+
   useEffect(() => {
     if (authLoading) {
       return;
@@ -59,12 +64,18 @@ export function DriverProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    let isActive = true;
+    setLoading(true);
+
+    // Load the complete driver profile on login.
     const loadDriver = async () => {
       const { data, error } = await supabase
         .from('drivers')
         .select('*')
         .eq('driver_id', supabaseAuthUser.id)
         .single();
+
+      if (!isActive) return;
 
       if (error) {
         setDriver(null);
@@ -90,15 +101,69 @@ export function DriverProvider({ children }: { children: ReactNode }) {
         insurancePolicy: data.insurance_policy,
         insuranceCompany: data.insurance_company,
         insuranceExpirationDate: data.insurance_expiration_date,
-        insuranceCardPath: data.insurance_card_path,        
+        insuranceCardPath: data.insurance_card_path,
         rating: data.rating,
         numberOfRatings: data.number_of_ratings,
         numberOfTrips: data.number_of_trips,
+        licenseStatus: data.license_status,
+        insuranceStatus: data.insurance_status,
+        payoutStatus: data.payout_status,
+        accountStatus: data.account_status,
       });
+
       setLoading(false);
     };
 
-    loadDriver();
+    // Listen for changes to this driver's row.
+    const channel = supabase
+      .channel(`driver-status-${supabaseAuthUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'drivers',
+          filter: `driver_id=eq.${supabaseAuthUser.id}`,
+        },
+        (payload) => {
+          if (!isActive) return;
+
+          const updated = payload.new as {
+            license_status: boolean;
+            insurance_status: boolean;
+            payout_status: boolean;
+            account_status: boolean;
+          };
+
+          setDriver((current) => {
+            if (!current) return current;
+
+            const changed =
+              current.licenseStatus !== updated.license_status ||
+              current.insuranceStatus !== updated.insurance_status ||
+              current.payoutStatus !== updated.payout_status ||
+              current.accountStatus !== updated.account_status;
+
+            if (!changed) return current;
+
+            return {
+              ...current,
+              licenseStatus: updated.license_status,
+              insuranceStatus: updated.insurance_status,
+              payoutStatus: updated.payout_status,
+              accountStatus: updated.account_status,
+            };
+          });
+        }
+      )
+      .subscribe();
+
+    void loadDriver();
+
+    return () => {
+      isActive = false;
+      void supabase.removeChannel(channel);
+    };
   }, [supabaseAuthUser, authLoading]);
 
   return (
