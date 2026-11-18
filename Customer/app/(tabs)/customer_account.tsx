@@ -524,6 +524,15 @@ export default function CustomerAccountScreen() {
               color="#D8DCE3"
             />
             <Text style={accountStylesCommon.sectionTitle}>Payment</Text>
+
+            {customer?.paymentMethodBrand && customer.paymentMethodLast4 && (
+              <MaterialCommunityIcons
+                name="check-circle"
+                size={22}
+                color="#328F7D"
+                style={{ marginLeft: 'auto'}}
+              />
+            )}
           </View>
           {hasAccount && customer?.paymentMethodBrand && customer.paymentMethodLast4 ? (
             <>
