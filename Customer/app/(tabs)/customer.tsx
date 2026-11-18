@@ -38,6 +38,7 @@ export default function RenterScreen() {
 
   const { trips, setTrips } = useTrip();
   const { customer } = useCustomer();
+  const currentTripStorageKey = customer?.customerID ? `laster_current_trip_id_${customer.customerID}`: null;
   const { user: supabaseAuthUser } = useAuth();
 
   const [rating, setRating] = useState<number | null>(null);
@@ -155,15 +156,15 @@ export default function RenterScreen() {
 
   useEffect(() => {
     const restoreCurrentTrip = async () => {
-      const storedTripID = await AsyncStorage.getItem(
-        'laster_current_trip_id'
-      );
+      if (!currentTripStorageKey) 
+        return;
+      const storedTripID = await AsyncStorage.getItem(currentTripStorageKey);
 
       setCurrentTripID(storedTripID);
     };
 
     void restoreCurrentTrip();
-  }, []);
+  }, [currentTripStorageKey]);
 
   const currentTrip = trips.find(
     (trip) => trip.tripID === currentTripID
@@ -445,10 +446,9 @@ export default function RenterScreen() {
       setCurrentTripID(newTrip.tripID);
       setRouteFare(Number(newTrip.fare));
 
-      await AsyncStorage.setItem(
-        'laster_current_trip_id',
-        newTrip.tripID,
-      );
+      if (currentTripStorageKey) {
+        await AsyncStorage.setItem(currentTripStorageKey,newTrip.tripID,);
+      }
 
       Alert.alert(
         'Trip Requested',
@@ -535,9 +535,9 @@ export default function RenterScreen() {
   const startNewTrip = async () => {
     setCurrentTripID(null);
 
-    await AsyncStorage.removeItem(
-      'laster_current_trip_id'
-    );
+    if (currentTripStorageKey) {
+      await AsyncStorage.removeItem(currentTripStorageKey);
+    }
 
     // Keep the customer's starting location and logged-in profile/payment
     // details for the next trip. Only clear trip-specific destination/cargo data.
