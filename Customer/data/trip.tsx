@@ -102,12 +102,12 @@ export function TripProvider({ children }: { children: ReactNode }) {
             });
           }
         )
-        .subscribe((status, error) => {
+        .subscribe((status) => {
           console.log('Customer trip Realtime status:', status);
 
-          if (error) {
-            console.error('Customer trip Realtime error:', error);
-          }
+          if (status === 'SUBSCRIBED') {
+            void refreshTrips();
+          }          
         });
     };
 
