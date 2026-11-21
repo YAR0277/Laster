@@ -40,6 +40,19 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="payouts"
+        options={{
+          title: 'Payouts',
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons
+              name="cash-multiple"
+              size={26}
+              color={color}
+            />
+          ),
+        }}
+      />      
+      <Tabs.Screen
         name="driver_account"
         options={{
           title: 'Account',

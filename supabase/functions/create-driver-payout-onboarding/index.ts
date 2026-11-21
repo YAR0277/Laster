@@ -1,13 +1,14 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+const STRIPE_API_VERSION = '2026-09-30.endive';
+const INSTANT_PAYOUT_FEE_PERCENT = 1;
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers':
     'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
-
-const STRIPE_API_VERSION = '2026-09-30.endive';
 
 const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -18,36 +19,21 @@ const jsonResponse = (body: unknown, status = 200) =>
     },
   });
 
-function toBase64Url(bytes: Uint8Array): string {
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  return btoa(binary)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-}
-
-async function signCallback(
-  secret: string,
-  payload: string,
-): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
-
-  const signature = await crypto.subtle.sign(
-    'HMAC',
-    key,
-    new TextEncoder().encode(payload),
-  );
-
-  return toBase64Url(new Uint8Array(signature));
-}
+const mapStripeStatus = (status: string) => {
+  switch (status) {
+    case 'pending':
+    case 'in_transit':
+    case 'paid':
+    case 'failed':
+    case 'canceled':
+      return status;
+    default:
+      return 'pending';
+  }
+};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -63,38 +49,28 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
-    const callbackSecret = Deno.env.get(
-      'STRIPE_ONBOARDING_CALLBACK_SECRET',
-    );
 
-    if (
-      !supabaseUrl ||
-      !anonKey ||
-      !serviceRoleKey ||
-      !stripeSecretKey ||
-      !callbackSecret
-    ) {
-      console.error('Required payout onboarding configuration is missing.');
+    if (!supabaseUrl || !anonKey || !serviceRoleKey || !stripeSecretKey) {
+      console.error('Payout function configuration is incomplete.');
       return jsonResponse(
-        { error: 'Payout onboarding is not configured.' },
+        { error: 'Server configuration is incomplete.' },
         500,
       );
     }
 
+    // Authenticate the driver.
     const authorization = req.headers.get('Authorization');
 
     if (!authorization?.startsWith('Bearer ')) {
       return jsonResponse({ error: 'Authentication required.' }, 401);
     }
 
+    const token = authorization.slice('Bearer '.length);
+
     const authClient = createClient(supabaseUrl, anonKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
+      auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const token = authorization.slice('Bearer '.length);
     const { data: userData, error: authError } =
       await authClient.auth.getUser(token);
 
@@ -104,212 +80,411 @@ Deno.serve(async (req) => {
 
     const user = userData.user;
 
+    // Parse request.
+    let body: {
+      payoutType?: unknown;
+      payoutPeriodId?: unknown;
+      transferIds?: unknown;
+      idempotencyKey?: unknown;
+    };
+
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: 'Invalid JSON request.' }, 400);
+    }
+
+    const payoutType = body.payoutType;
+    const idempotencyKey = body.idempotencyKey;
+
+    if (payoutType !== 'standard' && payoutType !== 'instant') {
+      return jsonResponse({ error: 'Invalid payout type.' }, 400);
+    }
+
+    if (
+      typeof idempotencyKey !== 'string' ||
+      !UUID_REGEX.test(idempotencyKey)
+    ) {
+      return jsonResponse(
+        { error: 'A valid payout idempotency key is required.' },
+        400,
+      );
+    }
+
+    let payoutPeriodId: string | null = null;
+    let transferIds: string[] | null = null;
+
+    if (payoutType === 'standard') {
+      if (
+        typeof body.payoutPeriodId !== 'string' ||
+        !UUID_REGEX.test(body.payoutPeriodId)
+      ) {
+        return jsonResponse(
+          { error: 'A valid payout period is required.' },
+          400,
+        );
+      }
+
+      payoutPeriodId = body.payoutPeriodId;
+
+      if (body.transferIds !== undefined && body.transferIds !== null) {
+        return jsonResponse(
+          { error: 'Standard payouts do not accept transfer IDs.' },
+          400,
+        );
+      }
+    } else {
+      if (
+        !Array.isArray(body.transferIds) ||
+        body.transferIds.length === 0 ||
+        !body.transferIds.every(
+          (id) => typeof id === 'string' && UUID_REGEX.test(id),
+        )
+      ) {
+        return jsonResponse(
+          { error: 'Select one or more valid transfers.' },
+          400,
+        );
+      }
+
+      if (new Set(body.transferIds).size !== body.transferIds.length) {
+        return jsonResponse(
+          { error: 'Duplicate transfer IDs are not allowed.' },
+          400,
+        );
+      }
+
+      transferIds = body.transferIds as string[];
+
+      if (body.payoutPeriodId !== undefined && body.payoutPeriodId !== null) {
+        return jsonResponse(
+          { error: 'Instant payouts do not accept a payout period.' },
+          400,
+        );
+      }
+    }
+
+    // Use service-role client only after authenticating.
     const admin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
+      auth: { persistSession: false, autoRefreshToken: false },
     });
 
+    // Load driver and connected Stripe account.
     const { data: driver, error: driverError } = await admin
       .from('drivers')
-      .select('driver_id, email, stripe_account_id')
+      .select('driver_id, stripe_account_id')
       .eq('driver_id', user.id)
       .maybeSingle();
 
     if (driverError) {
       console.error('Driver lookup failed:', driverError.message);
       return jsonResponse(
-        { error: 'Could not load driver account.' },
+        { error: 'Unable to load driver account.' },
         500,
       );
     }
 
     if (!driver) {
       return jsonResponse(
-        { error: 'Create a Laster driver account before setting up payouts.' },
+        { error: 'A Laster driver account is required.' },
         403,
       );
     }
 
-    let stripeAccountId = driver.stripe_account_id as string | null;
-
-    // Create a new Accounts v2 recipient account if none is saved.
-    if (!stripeAccountId) {
-      const accountResponse = await fetch(
-        'https://api.stripe.com/v2/core/accounts',
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${stripeSecretKey}`,
-            'Stripe-Version': STRIPE_API_VERSION,
-            'Content-Type': 'application/json',
-            'Idempotency-Key': `laster-driver-account-v2-${user.id}`,
-          },
-          body: JSON.stringify({
-            contact_email: driver.email || user.email || undefined,
-            display_name: user.email || `Laster driver ${user.id}`,
-            identity: {
-              country: 'us',
-              entity_type: 'individual',
-            },
-            configuration: {
-              recipient: {
-                capabilities: {
-                  stripe_balance: {
-                    stripe_transfers: {
-                      requested: true,
-                    },
-                  },
-                },
-              },
-            },
-            defaults: {
-              currency: 'usd',
-              responsibilities: {
-                fees_collector: 'application',
-                losses_collector: 'application',
-              },
-            },
-            dashboard: 'express',
-            metadata: {
-              laster_driver_id: user.id,
-            },
-            include: [
-              'configuration.recipient',
-              'identity',
-              'defaults',
-              'requirements',
-            ],
-          }),
-        },
+    if (!driver.stripe_account_id) {
+      return jsonResponse(
+        { error: 'A connected Stripe account is required.' },
+        400,
       );
-
-      const accountResult = await accountResponse.json();
-
-      if (!accountResponse.ok || !accountResult.id) {
-        console.error(
-          'Stripe v2 account creation failed:',
-          JSON.stringify(accountResult),
-        );
-
-        return jsonResponse(
-          {
-            error:
-              'Stripe could not create the payout account. Check the Stripe API logs.',
-          },
-          502,
-        );
-      }
-
-      stripeAccountId = accountResult.id as string;
-
-      const { data: updatedRows, error: updateError } = await admin
-        .from('drivers')
-        .update({ stripe_account_id: stripeAccountId })
-        .eq('driver_id', user.id)
-        .is('stripe_account_id', null)
-        .select('stripe_account_id');
-
-      if (updateError || !updatedRows?.length) {
-        console.error(
-          'Saving Stripe account ID failed:',
-          updateError?.message ?? 'No row updated; account ID may have changed.',
-        );
-
-        return jsonResponse(
-          {
-            error:
-              'The payout account was created, but Laster could not save its link. Please check the driver record before retrying.',
-          },
-          500,
-        );
-      }
     }
 
-    // Sign callback parameters so the public callback endpoint cannot
-    // be used to generate links for arbitrary drivers or Stripe accounts.
-    const expires = String(
-      Math.floor(Date.now() / 1000) + 60 * 60 * 24,
-    );
+    // Calculate the fee: 1% instant, 0% standard.
+    const feePercent =
+      payoutType === 'instant' ? INSTANT_PAYOUT_FEE_PERCENT : 0;
 
-    const signature = await signCallback(
-      callbackSecret,
-      `${user.id}.${stripeAccountId}.${expires}`,
-    );
-
-    const callbackParams = new URLSearchParams({
-      driver_id: user.id,
-      account_id: stripeAccountId,
-      expires,
-      signature,
-    });
-
-    const callbackBase =
-      `${supabaseUrl}/functions/v1/driver-payout-onboarding-callback`;
-
-    const returnUrl =
-      `${callbackBase}?flow=return&${callbackParams.toString()}`;
-
-    const refreshUrl =
-      `${callbackBase}?flow=refresh&${callbackParams.toString()}`;
-
-    // Accounts v2 Account Link: hosted onboarding for the recipient
-    // configuration. If Stripe rejects this payload, inspect its
-    // returned error before changing the request shape.
-    const linkResponse = await fetch(
-      'https://api.stripe.com/v2/core/account_links',
+    // Atomically create payout and assign eligible transfers.
+    const { data: claimData, error: claimError } = await admin.rpc(
+      'create_driver_payout_claim',
       {
+        p_driver_id: user.id,
+        p_payout_type: payoutType,
+        p_idempotency_key: idempotencyKey,
+        p_payout_period_id: payoutPeriodId,
+        p_transfer_ids: transferIds,
+        p_fee_percent: feePercent,
+      },
+    );
+
+    if (claimError) {
+      const message = claimError.message || '';
+
+      if (
+        message.includes('No eligible transfers') ||
+        message.includes('unavailable or already assigned')
+      ) {
+        return jsonResponse(
+          { error: 'No eligible transfers are available for this payout.' },
+          409,
+        );
+      }
+
+      console.error('Payout claim failed:', message);
+
+      return jsonResponse(
+        { error: 'Unable to create the payout record.' },
+        500,
+      );
+    }
+
+    const claim = Array.isArray(claimData)
+      ? claimData[0]
+      : claimData;
+
+    if (!claim?.created_payout_id) {
+      return jsonResponse(
+        { error: 'The payout record could not be verified.' },
+        500,
+      );
+    }
+
+    const payoutId = claim.created_payout_id;
+
+    // Retrieve the authoritative payout amounts from the database.
+    const { data: payout, error: payoutLookupError } = await admin
+      .from('payouts')
+      .select(
+        'payout_id, payout_amount, fees, net_payout, payout_type, payout_status, stripe_payout_id, idempotency_key',
+      )
+      .eq('payout_id', payoutId)
+      .eq('driver_id', user.id)
+      .single();
+
+    if (payoutLookupError || !payout) {
+      console.error(
+        'Payout record lookup failed:',
+        payoutLookupError?.message,
+      );
+
+      return jsonResponse(
+        { error: 'Unable to verify the payout record.' },
+        500,
+      );
+    }
+
+    // Do not retry a payout already recorded as failed.
+    if (payout.payout_status === 'failed' ||
+        payout.payout_status === 'canceled') {
+      return jsonResponse({
+        success: false,
+        payoutId,
+        status: payout.payout_status,
+        message: 'This payout has already failed or been canceled.',
+      }, 409);
+    }
+
+    // A Stripe payout already exists: return its recorded result.
+    if (payout.stripe_payout_id) {
+      return jsonResponse({
+        success: true,
+        payoutId,
+        stripePayoutId: payout.stripe_payout_id,
+        payoutType: payout.payout_type,
+        grossAmount: Number(payout.payout_amount),
+        fees: Number(payout.fees),
+        netPayout: Number(payout.net_payout),
+        status: payout.payout_status,
+        message: 'This payout has already been submitted to Stripe.',
+      });
+    }
+
+    // Convert dollars to integer cents.
+    const netAmountCents = Math.round(
+      Number(payout.net_payout) * 100,
+    );
+
+    if (!Number.isSafeInteger(netAmountCents) || netAmountCents <= 0) {
+      return jsonResponse(
+        { error: 'Invalid net payout amount.' },
+        500,
+      );
+    }
+
+    // Create the Stripe payout on the connected account.
+    // The same database payout ID always produces the same Stripe key.
+    const stripeIdempotencyKey = `laster-driver-payout-${payoutId}`;
+
+    const stripeForm = new URLSearchParams();
+    stripeForm.set('amount', String(netAmountCents));
+    stripeForm.set('currency', 'usd');
+    stripeForm.set('method', payoutType);
+    stripeForm.set('metadata[payout_id]', payoutId);
+    stripeForm.set('metadata[driver_id]', user.id);
+    stripeForm.set('metadata[payout_type]', payoutType);
+
+    let stripeResponse: Response;
+
+    try {
+      stripeResponse = await fetch('https://api.stripe.com/v1/payouts', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${stripeSecretKey}`,
           'Stripe-Version': STRIPE_API_VERSION,
-          'Content-Type': 'application/json',
+          'Stripe-Account': driver.stripe_account_id,
+          'Idempotency-Key': stripeIdempotencyKey,
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: JSON.stringify({
-          account: stripeAccountId,
-          use_case: {
-            type: 'account_onboarding',
-            account_onboarding: {
-              return_url: returnUrl,
-              refresh_url: refreshUrl,
-            },
-          },
-        }),
-      },
+        body: stripeForm.toString(),
+      });
+    } catch (error) {
+      // The result is uncertain. Keep the claim and retry with the same key.
+      console.error(
+        'Stripe payout request outcome is uncertain:',
+        error instanceof Error ? error.message : error,
+      );
+
+      return jsonResponse({
+        success: false,
+        payoutId,
+        status: 'pending',
+        message:
+          'Stripe could not be reached. The payout remains pending; retry using the same idempotency key.',
+      }, 502);
+    }
+
+    let stripeResult: Record<string, unknown>;
+
+    try {
+      stripeResult = await stripeResponse.json();
+    } catch {
+      stripeResult = {};
+    }
+
+    if (!stripeResponse.ok) {
+      const stripeError = stripeResult.error as
+        | { message?: string; type?: string; code?: string }
+        | undefined;
+
+      console.error('Stripe payout rejected:', {
+        status: stripeResponse.status,
+        type: stripeError?.type,
+        code: stripeError?.code,
+        message: stripeError?.message,
+      });
+
+      // A definitive Stripe rejection is recorded as failed.
+      // Transfers remain assigned for manual review.
+      if (stripeResponse.status >= 400 && stripeResponse.status < 500) {
+        const { error: updateError } = await admin
+          .from('payouts')
+          .update({ payout_status: 'failed' })
+          .eq('payout_id', payoutId)
+          .eq('payout_status', 'pending')
+          .is('stripe_payout_id', null);
+
+        if (updateError) {
+          console.error(
+            'Could not record rejected payout:',
+            updateError.message,
+          );
+        }
+
+        return jsonResponse({
+          success: false,
+          payoutId,
+          status: 'failed',
+          error: stripeError?.message || 'Stripe rejected the payout.',
+          message:
+            'Stripe rejected the payout. Its transfers remain assigned for review.',
+        }, 422);
+      }
+
+      // For server errors, do not assume Stripe did not create the payout.
+      return jsonResponse({
+        success: false,
+        payoutId,
+        status: 'pending',
+        message:
+          'Stripe returned a server error. Retry using the same idempotency key.',
+      }, 502);
+    }
+
+    const stripePayout = stripeResult as {
+      id?: string;
+      status?: string;
+      arrival_date?: number;
+    };
+
+    if (!stripePayout.id) {
+      // Preserve the claim because the outcome cannot be verified.
+      return jsonResponse({
+        success: false,
+        payoutId,
+        status: 'pending',
+        message:
+          'Stripe returned an unverified response. Retry using the same idempotency key.',
+      }, 502);
+    }
+
+    const payoutStatus = mapStripeStatus(
+      stripePayout.status || 'pending',
     );
 
-    const linkResult = await linkResponse.json();
+    const updateValues: Record<string, unknown> = {
+      stripe_payout_id: stripePayout.id,
+      payout_status: payoutStatus,
+    };
 
-    if (!linkResponse.ok || !linkResult.url) {
+    if (payoutStatus === 'paid') {
+      updateValues.paid_at = new Date().toISOString();
+    }
+
+    // Persist Stripe's payout ID and status.
+    const { error: saveError } = await admin
+      .from('payouts')
+      .update(updateValues)
+      .eq('payout_id', payoutId)
+      .eq('driver_id', user.id)
+      .is('stripe_payout_id', null);
+
+    if (saveError) {
+      // Stripe may already have created the payout.
+      // A retry will use the same Stripe idempotency key.
       console.error(
-        'Stripe v2 account-link creation failed:',
-        JSON.stringify(linkResult),
+        'Could not save Stripe payout result:',
+        saveError.message,
       );
 
-      return jsonResponse(
-        {
-          error:
-            'Stripe could not start payout setup. Check the Stripe API logs.',
-        },
-        502,
-      );
+      return jsonResponse({
+        success: false,
+        payoutId,
+        stripePayoutId: stripePayout.id,
+        status: payoutStatus,
+        message:
+          'Stripe created the payout, but its result could not be saved. Retry using the same idempotency key.',
+      }, 502);
     }
 
     return jsonResponse({
-      url: linkResult.url,
-      expiresAt: linkResult.expires_at ?? null,
+      success: true,
+      payoutId,
+      stripePayoutId: stripePayout.id,
+      payoutType,
+      grossAmount: Number(payout.payout_amount),
+      fees: Number(payout.fees),
+      netPayout: Number(payout.net_payout),
+      amountSentToStripe: netAmountCents / 100,
+      status: payoutStatus,
+      arrivalDate: stripePayout.arrival_date ?? null,
+      message: 'Payout successfully submitted to Stripe.',
     });
   } catch (error) {
     console.error(
-      'Payout onboarding error:',
+      'Create driver payout error:',
       error instanceof Error ? error.message : error,
     );
 
     return jsonResponse(
-      {
-        error: 'An unexpected error occurred while starting payout setup.',
-      },
+      { error: 'An unexpected error occurred while creating the payout.' },
       500,
     );
   }

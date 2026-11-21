@@ -429,23 +429,17 @@ export default function DriverScreen() {
             </Text>
 
             <Text style={driverStyles.tripText}>
-              <Text style={driverStyles.tripLabel}>Customer: </Text>
-              {trip.customerFirstName || '...'}
+              <Text style={driverStyles.tripLabel}>Fare: </Text>
+              {trip.fare != null
+                ? `$${trip.fare.toFixed(2)}`
+                : '...'}
             </Text>
 
             <Text style={driverStyles.tripText}>
-              <Text style={driverStyles.tripLabel}>Phone: </Text>
-              {trip.phone || '...'}
-            </Text>
-
-            <Text style={driverStyles.tripText}>
-              <Text style={driverStyles.tripLabel}>From: </Text>
-              {trip.from || '...'}
-            </Text>
-
-            <Text style={driverStyles.tripText}>
-              <Text style={driverStyles.tripLabel}>To: </Text>
-              {trip.to || '...'}
+              <Text style={driverStyles.tripLabel}>Payout: </Text>
+              {trip.payout != null
+                ? `$${trip.payout.toFixed(2)}`
+                : '...'}
             </Text>
 
             <Text style={driverStyles.tripText}>
@@ -475,17 +469,23 @@ export default function DriverScreen() {
             ) : null}
 
             <Text style={driverStyles.tripText}>
-              <Text style={driverStyles.tripLabel}>Fare: </Text>
-              {trip.fare != null
-                ? `$${trip.fare.toFixed(2)}`
-                : '...'}
+              <Text style={driverStyles.tripLabel}>From: </Text>
+              {trip.from || '...'}
             </Text>
 
             <Text style={driverStyles.tripText}>
-              <Text style={driverStyles.tripLabel}>Payout: </Text>
-              {trip.payout != null
-                ? `$${trip.payout.toFixed(2)}`
-                : '...'}
+              <Text style={driverStyles.tripLabel}>To: </Text>
+              {trip.to || '...'}
+            </Text>
+
+            <Text style={driverStyles.tripText}>
+              <Text style={driverStyles.tripLabel}>Customer: </Text>
+              {trip.customerFirstName || '...'}
+            </Text>
+
+            <Text style={driverStyles.tripText}>
+              <Text style={driverStyles.tripLabel}>Phone: </Text>
+              {trip.phone || '...'}
             </Text>
 
             <Text style={driverStyles.tripText}>

@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
     if (flow === 'return') {
       // Returning from onboarding does not prove payouts are ready.
       return Response.redirect(
-        'laster://driver_account?payout=return',
+        'lasterdriver://driver_account?payout=return',
         303,
       );
     }

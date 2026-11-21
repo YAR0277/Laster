@@ -140,11 +140,34 @@ Deno.serve(async (req) => {
       );
     }
 
-    const transferStatus =
-      account.configuration?.recipient?.capabilities?.stripe_balance
-        ?.stripe_transfers?.status;
+    const capabilities =
+      account.configuration?.recipient?.capabilities?.stripe_balance;
 
-    if (transferStatus === 'active') {
+    const transferStatus = capabilities?.stripe_transfers?.status;
+    const payoutCapabilityStatus = capabilities?.payouts?.status;
+
+    const isReady =
+      transferStatus === 'active' &&
+      payoutCapabilityStatus === 'active';
+
+    const { error: updateError } = await admin
+      .from('drivers')
+      .update({ payout_status: isReady })
+      .eq('driver_id', user.id);
+
+    if (updateError) {
+      console.error(
+        'Failed to update driver payout status:',
+        updateError.message,
+      );
+
+      return Response.json(
+        { error: 'Unable to update driver payout approval status.' },
+        { status: 500, headers: corsHeaders },
+      );
+    }
+
+    if (isReady) {
       return Response.json(
         {
           status: 'ready',
@@ -154,23 +177,32 @@ Deno.serve(async (req) => {
       );
     }
 
-    const requirements = account.requirements;
+    const requirementsEntries = Array.isArray(
+      account.requirements?.entries,
+    )
+      ? account.requirements.entries
+      : [];
 
-    const currentlyDue = requirements?.currently_due ?? [];
-    const pastDue = requirements?.past_due ?? [];
-    const eventuallyDue = requirements?.eventually_due ?? [];
+    const userActionRequired = requirementsEntries.some(
+      (entry: { awaiting_action_from?: string }) =>
+        entry.awaiting_action_from === 'user',
+    );
 
-    const onboardingRequired =
-      currentlyDue.length > 0 ||
-      pastDue.length > 0 ||
-      eventuallyDue.length > 0;
+    const stripeReviewPending = requirementsEntries.some(
+      (entry: { awaiting_action_from?: string }) =>
+        entry.awaiting_action_from === 'stripe',
+    );
 
     return Response.json(
       {
-        status: onboardingRequired ? 'onboarding_required' : 'restricted',
-        message: onboardingRequired
+        status: userActionRequired
+          ? 'onboarding_required'
+          : 'restricted',
+        message: userActionRequired
           ? 'Complete the required Stripe onboarding steps before accepting trips.'
-          : 'Your Stripe account is not currently ready for payouts.',
+          : stripeReviewPending
+            ? 'Stripe is reviewing your information. Your payout account is not ready yet.'
+            : 'Your Stripe account is not currently ready for payouts.',
       },
       { headers: corsHeaders },
     );

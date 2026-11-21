@@ -1,5 +1,5 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -26,6 +26,7 @@ import { supabase } from '../../lib/supabase';
 
 export default function DriverAccountScreen() {
   const router = useRouter();
+  const { payout } = useLocalSearchParams<{ payout?: string }>();
   const { driver, setDriver } = useDriver();
   const { trips, refreshTrips } = useTrip();
   const { user: supabaseAuthUser } = useAuth();
@@ -52,7 +53,6 @@ export default function DriverAccountScreen() {
   const [insuranceProviderFocused, setInsuranceProviderFocused] = useState(false);
   const insuranceProviderRef = useRef<TextInput>(null);
   const [insuranceExpirationDate, setInsuranceExpirationDate] = useState('');
-  const [insuranceCardPhoto, setInsuranceCardPhoto] = useState<string | null>(null);
   const [accountMode, setAccountMode] = useState<'login' | 'open'>('login');
   const hasAccount = supabaseAuthUser !== null && driver !== null;
   const [payoutLoading, setPayoutLoading] = useState(false);
@@ -60,6 +60,43 @@ export default function DriverAccountScreen() {
     'checking' | 'required' | 'ready' | 'restricted' | 'error'
   >('checking');
 
+  const verifyPayoutStatus = useCallback(async () => {
+    if (!hasAccount) {
+      return;
+    }
+
+    setPayoutStatus('checking');
+
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'verify-driver-payout-method'
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      switch (data?.status) {
+        case 'ready':
+          setPayoutStatus('ready');
+          break;
+        case 'onboarding_required':
+          setPayoutStatus('required');
+          break;
+        case 'restricted':
+          setPayoutStatus('restricted');
+          break;
+        default:
+          throw new Error(
+            data?.error ?? 'Unexpected payout verification response.'
+          );
+      }
+    } catch (error) {
+      console.error('Payout verification error:', error);
+      setPayoutStatus('error');
+    }
+  }, [hasAccount]);
+    
   const formatTripDate = (dateString: string) => {
     const date = new Date(dateString);
 
@@ -220,8 +257,15 @@ export default function DriverAccountScreen() {
   useFocusEffect(
     useCallback(() => {
       void refreshTrips();
-    }, [refreshTrips])
+      void verifyPayoutStatus();
+    }, [refreshTrips, verifyPayoutStatus])
   );
+
+  useEffect(() => {
+    if (payout === 'return' && hasAccount) {
+      void verifyPayoutStatus();
+    }
+  }, [payout, hasAccount, verifyPayoutStatus]);
 
   useEffect(() => {
     if (!insuranceProviderFocused) {
@@ -230,27 +274,6 @@ export default function DriverAccountScreen() {
       });
     }
   }, [insuranceCompany, insuranceProviderFocused]);
-
-  useEffect(() => {
-    const recoverPendingPhoto = async () => {
-      try {
-        const result = await ImagePicker.getPendingResultAsync();
-
-        if (result && !('code' in result) && !result.canceled) {
-          const uri = result.assets?.[0]?.uri;
-
-          if (uri) {
-            console.log('Recovered camera photo:', uri);
-            setInsuranceCardPhoto(uri);
-          }
-        }
-      } catch (error) {
-        console.error('Pending photo recovery error:', error);
-      }
-    };
-
-    recoverPendingPhoto();
-  }, []);
 
   useEffect(() => {
     if (driver) {
@@ -313,13 +336,6 @@ export default function DriverAccountScreen() {
     }
 
     setPassword('');
-
-    Alert.alert(
-      'Login Successful',
-      'Welcome back.'
-    );
-
-    router.replace('/(tabs)/driver');
   };
 
   const uploadTruckPhoto = async (): Promise<string> => {
@@ -352,34 +368,6 @@ export default function DriverAccountScreen() {
       .getPublicUrl(fileName);
 
     return data.publicUrl;
-  };
-
-  const uploadDriverDocument = async (
-    photo: string | null,
-    driverID: string,
-    documentType: string
-  ): Promise<string> => {
-    if (!photo) {
-      throw new Error(`${documentType} photo is missing.`);
-    }
-
-    const file = new File(photo);
-    const arrayBuffer = await file.arrayBuffer();
-
-    const fileName = `${driverID}/${uuidv4()}.jpg`;
-
-    const { error } = await supabase.storage
-      .from('driver-documents')
-      .upload(fileName, arrayBuffer, {
-        contentType: 'image/jpeg',
-        upsert: false,
-      });
-
-    if (error) {
-      throw error;
-    }
-
-    return fileName;
   };
 
   const deleteTruckPhoto = async (photoUrl: string) => {
@@ -450,17 +438,11 @@ export default function DriverAccountScreen() {
       }
     }
 
-    let truckPhotoUrl = '';
-    let insuranceCardPath: string | null = null;
-    try {
-      truckPhotoUrl = await uploadTruckPhoto();
+      let truckPhotoUrl = '';
 
-      insuranceCardPath = await uploadDriverDocument(
-        insuranceCardPhoto,
-        data.user.id,
-        'Insurance Card'
-      );
-    } catch (error) {
+      try {
+        truckPhotoUrl = await uploadTruckPhoto();
+      } catch (error) {
       Alert.alert(
         'Photo Upload Error',
         error instanceof Error
@@ -490,7 +472,6 @@ export default function DriverAccountScreen() {
         insurance_policy: insurancePolicy,
         insurance_company: insuranceCompany,
         insurance_expiration_date: insuranceExpirationDate,
-        insurance_card_path: insuranceCardPath,
         rating: null,
         number_of_ratings: 0,
         number_of_trips: 0,
@@ -519,7 +500,7 @@ export default function DriverAccountScreen() {
       insurancePolicy,
       insuranceCompany,
       insuranceExpirationDate,
-      insuranceCardPath,
+      insuranceCardPath: null,
       rating: null,
       numberOfRatings: 0,
       numberOfTrips: 0,
@@ -543,18 +524,10 @@ export default function DriverAccountScreen() {
     }
 
     let truckPhotoUrl = '';
-    let insuranceCardPath = driver.insuranceCardPath;
 
     try {
       truckPhotoUrl = await uploadTruckPhoto();
 
-      if (insuranceCardPhoto) {
-        insuranceCardPath = await uploadDriverDocument(
-          insuranceCardPhoto,
-          driver.driverID,
-          'Insurance Card'
-        );
-      }
     } catch (error) {
       Alert.alert(
         'Photo Upload Error',
@@ -584,7 +557,6 @@ export default function DriverAccountScreen() {
         insurance_policy: insurancePolicy,
         insurance_company: insuranceCompany,
         insurance_expiration_date: insuranceExpirationDate,
-        insurance_card_path: insuranceCardPath,
       })
       .eq('driver_id', driver.driverID);
 
@@ -629,11 +601,7 @@ export default function DriverAccountScreen() {
       insurancePolicy,
       insuranceCompany,
       insuranceExpirationDate,
-      insuranceCardPath,
     });
-
-    // Clear local document selections after successful save.
-    setInsuranceCardPhoto(null);
 
     Alert.alert(
       'Account Updated',
@@ -1138,9 +1106,9 @@ export default function DriverAccountScreen() {
               Payout Settings
             </Text>
             <MaterialCommunityIcons
-              name={driver?.payoutStatus ? 'check-circle' : 'circle-outline'}
+              name={payoutStatus === 'ready' ? 'check-circle' : 'circle-outline'}
               size={22}
-              color={driver?.payoutStatus ? '#328F7D' : '#8F96A3'}
+              color={payoutStatus === 'ready' ? '#328F7D' : '#8F96A3'}
               style={{ marginLeft: 'auto' }}
             />
           </View>
@@ -1151,13 +1119,30 @@ export default function DriverAccountScreen() {
             is not complete until you finish this setup.
           </Text>
 
+          <Text style={accountStyles.payoutDescription}>
+            {payoutStatus === 'checking' &&
+              'Checking Stripe payout status...'}
+            {payoutStatus === 'ready' &&
+              'Stripe payout account is ready.'}
+            {payoutStatus === 'required' &&
+              'Complete the remaining Stripe setup steps.'}
+            {payoutStatus === 'restricted' &&
+              'Your Stripe account is not yet ready for payouts.'}
+            {payoutStatus === 'error' &&
+              'Unable to verify Stripe status. Please try again.'}
+          </Text>
+
           <Pressable
             style={accountStyles.actionRow}
             onPress={setUpPayouts}
             disabled={payoutLoading}
           >
             <Text style={accountStyles.actionRowText}>
-              {payoutLoading ? 'Opening Payout Settings...' : 'Set Up Payouts'}
+              {payoutLoading
+                ? 'Opening Payout Settings...'
+                : payoutStatus === 'required'
+                  ? 'Continue Stripe Setup'
+                  : 'Set Up Payouts'}
             </Text>
             <MaterialCommunityIcons
               name="chevron-right"
@@ -1256,14 +1241,16 @@ export default function DriverAccountScreen() {
       {/* Actions */}
       <View style={accountStylesCommon.actions}>
         {!hasAccount ? (
-          <Pressable
-            style={accountStyles.primaryButton}
-            onPress={accountMode === 'login' ? login : openAccount}
-          >
-            <Text style={accountStylesCommon.buttonText}>
-              {accountMode === 'login' ? 'Login' : 'Open'}
-            </Text>
-          </Pressable>
+          <>
+            <Pressable
+              style={accountStyles.primaryButton}
+              onPress={accountMode === 'login' ? login : openAccount}
+            >
+              <Text style={accountStylesCommon.buttonText}>
+                {accountMode === 'login' ? 'Login' : 'Open'}
+              </Text>
+            </Pressable>
+          </>
         ) : (
           <>
             <Pressable
