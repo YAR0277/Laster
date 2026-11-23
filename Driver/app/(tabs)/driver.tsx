@@ -29,6 +29,7 @@ export default function DriverScreen() {
   const [abortingTripID, setAbortingTripID] = useState<string | null>(null);
   const hasAccount = !driverLoading && driver !== null;
   const accountStatusApproved = driver?.accountStatus === true;
+  const [nextStepsExpanded, setNextStepsExpanded] = useState(false);  
 
   const hasAcceptedTrip = trips.some(
     (trip) =>
@@ -359,12 +360,16 @@ export default function DriverScreen() {
     }
   };
 
-  const visibleTrips = trips.filter(
-    (trip) =>
-      trip.status === 'Requested' ||
-      trip.status === 'Accepted' ||
-      trip.status === 'Started'
-  );
+  const visibleTrips = trips.filter((trip) => {
+    if (hasAcceptedTrip) {
+      return (
+        trip.status === 'Accepted' ||
+        trip.status === 'Started'
+      );
+    }
+
+    return trip.status === 'Requested';
+  });
 
   return (
     <ScrollView
@@ -443,9 +448,18 @@ export default function DriverScreen() {
             </Text>
 
             <Text style={driverStyles.tripText}>
-              <Text style={driverStyles.tripLabel}>Trip distance: </Text>
+              <Text style={driverStyles.tripLabel}>Distance: </Text>
               {trip.distance != null
                 ? `${trip.distance.toFixed(1)} mi`
+                : '...'}
+            </Text>
+
+            <Text style={driverStyles.tripText}>
+              <Text style={driverStyles.tripLabel}>Rate: </Text>
+              {trip.payout != null &&
+              trip.distance != null &&
+              trip.distance > 0
+                ? `$${(trip.payout / trip.distance).toFixed(2)}/mi`
                 : '...'}
             </Text>
 
@@ -532,29 +546,34 @@ export default function DriverScreen() {
               />
 
               {/* Next Steps Heading */}
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: 'bold',
-                  color: '#FFFFFF',
-                }}
+              <Pressable
+                onPress={() =>setNextStepsExpanded((expanded) => !expanded)}
+                style={driverStyles.nextStepsHeader}
               >
-                Next steps
-              </Text>
+                <Text style={driverStyles.nextStepsTitle}>Next steps</Text>
 
-              {/* Instructions */}
-              <Text style={driverStyles.tripText}>
-                Please drive to the pickup address by{' '}
-                <Text style={driverStyles.tripLabel}>From</Text>
-                {' '}to pick up {trip.customerFirstName}&apos;s {trip.cargo}.
+                <MaterialCommunityIcons
+                  name={nextStepsExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={24}
+                  color="#B8BCC4"
+                />
+              </Pressable>
 
-                {'\n\n'}Once the {trip.cargo} is loaded and you&apos;re ready to go,
-                press <Text style={driverStyles.tripLabel}>Start</Text>.
+              {/* Next Steps */}
+              {nextStepsExpanded && (
+                <Text style={driverStyles.tripText}>
+                  Please drive to the pickup address by{' '}
+                  <Text style={driverStyles.tripLabel}>From</Text>
+                  {' '}to pick up {trip.customerFirstName}&apos;s {trip.cargo}.
 
-                {'\n\n'}If you need to{' '}
-                <Text style={driverStyles.tripLabel}>Abort</Text>,
-                {' '}{trip.customerFirstName} will be notified automatically.
-              </Text>
+                  {'\n\n'}Once the {trip.cargo} is loaded and you&apos;re ready to go,
+                  press <Text style={driverStyles.tripLabel}>Start</Text>.
+
+                  {'\n\n'}If you need to{' '}
+                  <Text style={driverStyles.tripLabel}>Abort</Text>,
+                  {' '}{trip.customerFirstName} will be notified automatically.
+                </Text>
+              )}
 
               {/* Start and Abort Buttons */}
               <View style={{ flexDirection: 'row', gap: 8 }}>

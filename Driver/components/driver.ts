@@ -35,6 +35,18 @@ export const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
+  nextStepsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  nextStepsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+
   status: {
     marginTop: 8,
     paddingTop: 16,
