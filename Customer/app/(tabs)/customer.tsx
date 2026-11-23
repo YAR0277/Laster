@@ -267,13 +267,24 @@ export default function RenterScreen() {
   };
 
   const pickCargoPhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const permission =
+      await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        'Camera Permission',
+        'Please allow camera access to take a cargo photo.'
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
+      allowsEditing: false,
       quality: 0.8,
     });
 
-    if (!result.canceled) {
+    if (!result.canceled && result.assets?.length > 0) {
       setCargoPhoto(result.assets[0].uri);
     }
   };
