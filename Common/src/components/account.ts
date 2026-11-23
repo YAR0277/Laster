@@ -91,6 +91,21 @@ export const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
+  sectionCollapsed: {
+    paddingVertical: 8,
+  },
+
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+
+  sectionHeadingCollapsed: {
+    marginBottom: 0,
+  },
+
   sectionHeading: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -99,7 +114,7 @@ export const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontSize: 21,
+    fontSize: 19,
     fontWeight: '500',
     color: '#F5F5F5',
     marginBottom: 0,

@@ -41,6 +41,9 @@ export default function CustomerAccountScreen() {
   const [password, setPassword] = useState('');
   const [accountMode, setAccountMode] = useState<'login' | 'open'>('login');
   const hasAccount = supabaseAuthUser !== null && customer !== null;
+  const [contactExpanded, setContactExpanded] = useState(false);
+  const [paymentExpanded, setPaymentExpanded] = useState(false);
+  const [tripHistoryExpanded, setTripHistoryExpanded] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -241,11 +244,6 @@ export default function CustomerAccountScreen() {
     }
 
     setPassword('');
-
-    Alert.alert(
-      'Login Successful',
-      'Welcome back.'
-    );
   };
 
   const setupCustomerCard = async () => {
@@ -460,43 +458,68 @@ export default function CustomerAccountScreen() {
 
       {/* Contact */}
       {(hasAccount || accountMode === 'open') && (
-        <View style={accountStylesCommon.section}>
-          <View style={accountStylesCommon.sectionHeading}>
+        <View
+          style={[
+            accountStylesCommon.section,
+            !contactExpanded && accountStylesCommon.sectionCollapsed,
+          ]}
+        >
+          <Pressable
+            onPress={() => setContactExpanded((expanded) => !expanded)}
+            style={accountStylesCommon.sectionHeader}
+          >
+            <View
+              style={[
+                accountStylesCommon.sectionHeading,
+                !contactExpanded && accountStylesCommon.sectionHeadingCollapsed,
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="account-outline"
+                size={23}
+                color="#D8DCE3"
+              />
+              <Text style={accountStylesCommon.sectionTitle}>Contact</Text>
+            </View>
+
             <MaterialCommunityIcons
-              name="account-outline"
-              size={23}
-              color="#D8DCE3"
+              name={contactExpanded ? 'chevron-up' : 'chevron-down'}
+              size={24}
+              color="#B8BCC4"
             />
-            <Text style={accountStylesCommon.sectionTitle}>Contact</Text>
-          </View>
+          </Pressable>
 
-          <Text style={accountStylesCommon.fieldLabel}>First Name</Text>
-          <TextInput
-            style={accountStylesCommon.input}
-            placeholder="Enter first name"
-            placeholderTextColor="#888"
-            value={firstName}
-            onChangeText={setFirstName}
-          />
+          {contactExpanded && (
+            <>
+              <Text style={accountStylesCommon.fieldLabel}>First Name</Text>
+              <TextInput
+                style={accountStylesCommon.input}
+                placeholder="Enter first name"
+                placeholderTextColor="#888"
+                value={firstName}
+                onChangeText={setFirstName}
+              />
 
-          <Text style={accountStylesCommon.fieldLabel}>Last Name</Text>
-          <TextInput
-            style={accountStylesCommon.input}
-            placeholder="Enter last name"
-            placeholderTextColor="#888"
-            value={lastName}
-            onChangeText={setLastName}
-          />
+              <Text style={accountStylesCommon.fieldLabel}>Last Name</Text>
+              <TextInput
+                style={accountStylesCommon.input}
+                placeholder="Enter last name"
+                placeholderTextColor="#888"
+                value={lastName}
+                onChangeText={setLastName}
+              />
 
-          <Text style={accountStylesCommon.fieldLabel}>Phone</Text>
-          <TextInput
-            style={accountStylesCommon.input}
-            placeholder="Enter phone number"
-            placeholderTextColor="#888"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-          />
+              <Text style={accountStylesCommon.fieldLabel}>Phone</Text>
+              <TextInput
+                style={accountStylesCommon.input}
+                placeholder="Enter phone number"
+                placeholderTextColor="#888"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+              />
+            </>
+          )}
         </View>
       )}
 
@@ -516,123 +539,175 @@ export default function CustomerAccountScreen() {
 
       {/* Payment */}
       {(hasAccount || accountMode === 'open') && (
-        <View style={accountStylesCommon.section}>
-          <View style={accountStylesCommon.sectionHeading}>
-            <MaterialCommunityIcons
-              name="credit-card-outline"
-              size={23}
-              color="#D8DCE3"
-            />
-            <Text style={accountStylesCommon.sectionTitle}>Payment</Text>
-
-            {customer?.paymentMethodBrand && customer.paymentMethodLast4 && (
+        <View
+          style={[
+            accountStylesCommon.section,
+            !paymentExpanded && accountStylesCommon.sectionCollapsed,
+          ]}
+        >
+          <Pressable
+            onPress={() => setPaymentExpanded((expanded) => !expanded)}
+            style={accountStylesCommon.sectionHeader}
+          >
+            <View
+              style={[
+                accountStylesCommon.sectionHeading,
+                !paymentExpanded && accountStylesCommon.sectionHeadingCollapsed,
+              ]}
+            >
               <MaterialCommunityIcons
-                name="check-circle"
-                size={22}
-                color="#328F7D"
-                style={{ marginLeft: 'auto'}}
+                name="credit-card-outline"
+                size={23}
+                color="#D8DCE3"
               />
-            )}
-          </View>
-          {hasAccount && customer?.paymentMethodBrand && customer.paymentMethodLast4 ? (
+              <Text style={accountStylesCommon.sectionTitle}>Payment</Text>
+
+              {customer?.paymentMethodBrand && customer.paymentMethodLast4 && (
+                <MaterialCommunityIcons
+                  name="check-circle"
+                  size={22}
+                  color="#328F7D"
+                  style={{ marginLeft: 'auto' }}
+                />
+              )}
+            </View>
+
+            <MaterialCommunityIcons
+              name={paymentExpanded ? 'chevron-up' : 'chevron-down'}
+              size={24}
+              color="#B8BCC4"
+            />
+          </Pressable>
+
+          {paymentExpanded && (
             <>
-              <Text style={accountStylesCommon.fieldLabel}>Saved card</Text>
-              <Text style={accountStyles.infoValue}>
-                {String(customer.paymentMethodBrand).toUpperCase()} ending in {customer.paymentMethodLast4}
-              </Text>
-              {customer.paymentMethodExpMonth != null && customer.paymentMethodExpYear != null && (
-                <Text style={accountStyles.infoLabel}>
-                  Expires {String(customer.paymentMethodExpMonth).padStart(2, '0')}/{customer.paymentMethodExpYear}
+              {hasAccount && customer?.paymentMethodBrand && customer.paymentMethodLast4 ? (
+                <>
+                  <Text style={accountStylesCommon.fieldLabel}>Saved card</Text>
+                  <Text style={accountStyles.infoValue}>
+                    {String(customer.paymentMethodBrand).toUpperCase()} ending in {customer.paymentMethodLast4}
+                  </Text>
+                  {customer.paymentMethodExpMonth != null && customer.paymentMethodExpYear != null && (
+                    <Text style={accountStyles.infoLabel}>
+                      Expires {String(customer.paymentMethodExpMonth).padStart(2, '0')}/{customer.paymentMethodExpYear}
+                    </Text>
+                  )}
+                </>
+              ) : (
+                <Text style={accountStylesCommon.emptyText}>
+                  {hasAccount ? 'No payment card saved yet.' : 'You can add a card after opening your account.'}
                 </Text>
               )}
+
+              {hasAccount && (
+                <Pressable
+                  style={[accountStyles.primaryButton, accountStyles.paymentButton]}
+                  onPress={setupCustomerCard}
+                  disabled={paymentLoading}
+                >
+                  <Text style={accountStylesCommon.buttonText}>
+                    {paymentLoading ? 'Processing…' : customer?.paymentMethodLast4 ? 'Change Card' : 'Add Payment Card'}
+                  </Text>
+                </Pressable>
+              )}
             </>
-          ) : (
-            <Text style={accountStylesCommon.emptyText}>
-              {hasAccount ? 'No payment card saved yet.' : 'You can add a card after opening your account.'}
-            </Text>
-          )}
-          {hasAccount && (
-            <Pressable
-              style={[accountStyles.primaryButton, accountStyles.paymentButton]}
-              onPress={setupCustomerCard}
-              disabled={paymentLoading}
-            >
-              <Text style={accountStylesCommon.buttonText}>
-                {paymentLoading ? 'Processing…' : customer?.paymentMethodLast4 ? 'Change Card' : 'Add Payment Card'}
-              </Text>
-            </Pressable>
           )}
         </View>
       )}
 
       {/* Trip History */}
       {hasAccount && (
-        <View style={accountStylesCommon.section}>
-          <View style={accountStylesCommon.sectionHeading}>
-            <MaterialCommunityIcons
-              name="history"
-              size={23}
-              color="#D8DCE3"
-            />
-            <Text style={accountStylesCommon.sectionTitle}>Trip History</Text>
-          </View>
-
-        {customerTrips.length === 0 ? (
-          <Text style={accountStylesCommon.emptyText}>
-            No trip history.
-          </Text>
-        ) : (
-          customerTrips.map((trip) => (
+        <View
+          style={[
+            accountStylesCommon.section,
+            !tripHistoryExpanded && accountStylesCommon.sectionCollapsed,
+          ]}
+        >
+          <Pressable
+            onPress={() => setTripHistoryExpanded((expanded) => !expanded)}
+            style={accountStylesCommon.sectionHeader}
+          >
             <View
-              key={trip.tripID}
-              style={accountStylesCommon.tripRow}
+              style={[
+                accountStylesCommon.sectionHeading,
+                !tripHistoryExpanded && accountStylesCommon.sectionHeadingCollapsed,
+              ]}
             >
-              <View>
-                <Text style={accountStylesCommon.tripDate}>
-                  {formatTripDate(trip.requestedAt)}
-                </Text>
-
-                <Text style={accountStylesCommon.tripRoute}>
-                  Trip: {formatDisplayTripID(trip.displayTripID)}
-                </Text>
-
-                <Text style={accountStylesCommon.tripRoute}>
-                  Status: {trip.status}
-                </Text>
-
-                <Text style={accountStylesCommon.tripRoute}>
-                  Cargo: {trip.cargo || '...'}
-                </Text>
-
-                <Text style={accountStylesCommon.tripRoute}>
-                  Distance:{' '}
-                  {trip.distance !== null
-                    ? `${trip.distance.toFixed(2)} mi`
-                    : '...'}
-                </Text>
-
-                {trip.driverFirstName && (
-                  <Text style={accountStylesCommon.tripRoute}>
-                    Driver: {trip.driverFirstName}
-                  </Text>
-                )}
-
-                <Text style={accountStylesCommon.tripRoute}>
-                  Rating:{' '}
-                  {trip.driverRating != null
-                    ? `${trip.driverRating}/5`
-                    : 'Not rated'}
-                </Text>                
-              </View>
-
-              <Text style={accountStylesCommon.tripFare}>
-                {trip.fare !== null
-                  ? `$${trip.fare.toFixed(2)}`
-                  : '...'}
-              </Text>
+              <MaterialCommunityIcons
+                name="history"
+                size={23}
+                color="#D8DCE3"
+              />
+              <Text style={accountStylesCommon.sectionTitle}>Trip History</Text>
             </View>
-          ))
-        )}
+
+            <MaterialCommunityIcons
+              name={tripHistoryExpanded ? 'chevron-up' : 'chevron-down'}
+              size={24}
+              color="#B8BCC4"
+            />
+          </Pressable>
+
+          {tripHistoryExpanded && (
+            <>
+              {customerTrips.length === 0 ? (
+                <Text style={accountStylesCommon.emptyText}>
+                  No trip history.
+                </Text>
+              ) : (
+                customerTrips.map((trip) => (
+                  <View
+                    key={trip.tripID}
+                    style={accountStylesCommon.tripRow}
+                  >
+                    <View>
+                      <Text style={accountStylesCommon.tripDate}>
+                        {formatTripDate(trip.requestedAt)}
+                      </Text>
+
+                      <Text style={accountStylesCommon.tripRoute}>
+                        Trip: {formatDisplayTripID(trip.displayTripID)}
+                      </Text>
+
+                      <Text style={accountStylesCommon.tripRoute}>
+                        Status: {trip.status}
+                      </Text>
+
+                      <Text style={accountStylesCommon.tripRoute}>
+                        Cargo: {trip.cargo || '...'}
+                      </Text>
+
+                      <Text style={accountStylesCommon.tripRoute}>
+                        Distance:{' '}
+                        {trip.distance !== null
+                          ? `${trip.distance.toFixed(2)} mi`
+                          : '...'}
+                      </Text>
+
+                      {trip.driverFirstName && (
+                        <Text style={accountStylesCommon.tripRoute}>
+                          Driver: {trip.driverFirstName}
+                        </Text>
+                      )}
+
+                      <Text style={accountStylesCommon.tripRoute}>
+                        Rating:{' '}
+                        {trip.driverRating != null
+                          ? `${trip.driverRating}/5`
+                          : 'Not rated'}
+                      </Text>
+                    </View>
+
+                    <Text style={accountStylesCommon.tripFare}>
+                      {trip.fare !== null
+                        ? `$${trip.fare.toFixed(2)}`
+                        : '...'}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </>
+          )}
         </View>
       )}
 

@@ -59,7 +59,13 @@ export default function DriverAccountScreen() {
   const [payoutStatus, setPayoutStatus] = useState<
     'checking' | 'required' | 'ready' | 'restricted' | 'error'
   >('checking');
-
+  const [contactExpanded, setContactExpanded] = useState(false);
+  const [pickupTruckExpanded, setPickupTruckExpanded] = useState(false);
+  const [licenseExpanded, setLicenseExpanded] = useState(false);
+  const [insuranceExpanded, setInsuranceExpanded] = useState(false);
+  const [payoutSettingsExpanded, setPayoutSettingsExpanded] = useState(false);
+  const [ratingExpanded, setRatingExpanded] = useState(false);
+  const [tripHistoryExpanded, setTripHistoryExpanded] = useState(false);
   const verifyPayoutStatus = useCallback(async () => {
     if (!hasAccount) {
       return;
@@ -844,239 +850,300 @@ export default function DriverAccountScreen() {
 
       {/* Contact */}
       {(hasAccount || accountMode === 'open') && (
-        <View style={accountStylesCommon.section}>
-          <View style={accountStylesCommon.sectionHeading}>
+        <View style={[accountStylesCommon.section, 
+                      !contactExpanded && accountStylesCommon.sectionCollapsed,]}>
+          <Pressable
+            onPress={() => setContactExpanded((expanded) => !expanded)}
+            style={accountStylesCommon.sectionHeader}
+          >
+            <View style={[accountStylesCommon.sectionHeading,
+                          !contactExpanded && accountStylesCommon.sectionHeadingCollapsed,]}>
+              <MaterialCommunityIcons
+                name="account-outline"
+                size={23}
+                color="#D8DCE3"
+              />
+              <Text style={accountStylesCommon.sectionTitle}>Contact</Text>
+            </View>
             <MaterialCommunityIcons
-              name="account-outline"
-              size={23}
-              color="#D8DCE3"
+              name={contactExpanded ? 'chevron-up' : 'chevron-down'}
+              size={24}
+              color="#B8BCC4"
             />
-            <Text style={accountStylesCommon.sectionTitle}>Contact</Text>
-          </View>
+          </Pressable>
 
-          <Text style={accountStylesCommon.fieldLabel}>First Name</Text>
-          <TextInput
-            style={accountStylesCommon.input}
-            placeholder="Enter first name"
-            placeholderTextColor="#888"
-            value={firstName}
-            onChangeText={setFirstName}
-          />
+          {contactExpanded && (
+            <>
+            <Text style={accountStylesCommon.fieldLabel}>First Name</Text>
+              <TextInput
+                style={accountStylesCommon.input}
+                placeholder="Enter first name"
+                placeholderTextColor="#888"
+                value={firstName}
+                onChangeText={setFirstName}
+              />
 
-          <Text style={accountStylesCommon.fieldLabel}>Last Name</Text>
-          <TextInput
-            style={accountStylesCommon.input}
-            placeholder="Enter last name"
-            placeholderTextColor="#888"
-            value={lastName}
-            onChangeText={setLastName}
-          />
+              <Text style={accountStylesCommon.fieldLabel}>Last Name</Text>
+              <TextInput
+                style={accountStylesCommon.input}
+                placeholder="Enter last name"
+                placeholderTextColor="#888"
+                value={lastName}
+                onChangeText={setLastName}
+              />
 
-          <Text style={accountStylesCommon.fieldLabel}>Phone</Text>
-          <TextInput
-            style={accountStylesCommon.input}
-            placeholder="Enter phone number"
-            placeholderTextColor="#888"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-          />
+              <Text style={accountStylesCommon.fieldLabel}>Phone</Text>
+              <TextInput
+                style={accountStylesCommon.input}
+                placeholder="Enter phone number"
+                placeholderTextColor="#888"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+              />
+            </>
+          )}
         </View>
       )}
 
       {/* Pickup Truck */}
       {(hasAccount || accountMode === 'open') && (
-        <View style={accountStylesCommon.section}>
-        <View style={accountStylesCommon.sectionHeading}>
-          <MaterialCommunityIcons
-            name="car-pickup"
-            size={23}
-            color="#D8DCE3"
-          />
-          <Text style={accountStylesCommon.sectionTitle}>Pickup Truck</Text>
-        </View>
+        <View style={[accountStylesCommon.section, 
+                      !pickupTruckExpanded && accountStylesCommon.sectionCollapsed,]}>
+          <Pressable
+            onPress={() => setPickupTruckExpanded((expanded) => !expanded)}
+            style={accountStylesCommon.sectionHeader}
+          >
+            <View style={[accountStylesCommon.sectionHeading,
+                          !pickupTruckExpanded && accountStylesCommon.sectionHeadingCollapsed,]}>
+              <MaterialCommunityIcons
+                name="car-pickup"
+                size={23}
+                color="#D8DCE3"
+              />
+              <Text style={accountStylesCommon.sectionTitle}>Pickup Truck</Text>
+            </View>
+            <MaterialCommunityIcons
+              name={pickupTruckExpanded ? 'chevron-up' : 'chevron-down'}
+              size={24}
+              color="#B8BCC4"
+            />
+          </Pressable>
 
-        <Text style={accountStylesCommon.fieldLabel}>Make</Text>
-        <TextInput
-          style={accountStylesCommon.input}
-          placeholder="Enter truck make"
-          placeholderTextColor="#888"
-          value={make}
-          onChangeText={setMake}
-        />
+          {pickupTruckExpanded && (
+            <>
+            <Text style={accountStylesCommon.fieldLabel}>Make</Text>
+            <TextInput
+              style={accountStylesCommon.input}
+              placeholder="Enter truck make"
+              placeholderTextColor="#888"
+              value={make}
+              onChangeText={setMake}
+            />
 
-        <Text style={accountStylesCommon.fieldLabel}>Model</Text>
-        <TextInput
-          style={accountStylesCommon.input}
-          placeholder="Enter truck model"
-          placeholderTextColor="#888"
-          value={model}
-          onChangeText={setModel}
-        />
+            <Text style={accountStylesCommon.fieldLabel}>Model</Text>
+            <TextInput
+              style={accountStylesCommon.input}
+              placeholder="Enter truck model"
+              placeholderTextColor="#888"
+              value={model}
+              onChangeText={setModel}
+            />
 
-        <Text style={accountStylesCommon.fieldLabel}>Year</Text>
-        <TextInput
-          style={accountStylesCommon.input}
-          placeholder="Enter truck year"
-          placeholderTextColor="#888"
-          value={year}
-          onChangeText={setYear}
-          keyboardType="number-pad"
-        />
+            <Text style={accountStylesCommon.fieldLabel}>Year</Text>
+            <TextInput
+              style={accountStylesCommon.input}
+              placeholder="Enter truck year"
+              placeholderTextColor="#888"
+              value={year}
+              onChangeText={setYear}
+              keyboardType="number-pad"
+            />
 
-        <Text style={accountStylesCommon.fieldLabel}>VIN Number</Text>
-        <TextInput
-          style={accountStylesCommon.input}
-          placeholder="Enter VIN"
-          placeholderTextColor="#8F96A3"
-          value={vinNumber}
-          onChangeText={(value) => {
-            setVinNumber(value.toUpperCase());
-            setVinVerification('');
-          }}
-          autoCapitalize="characters"
-          autoCorrect={false}
-          maxLength={17}
-          onEndEditing={verifyVin}
-        />
+            <Text style={accountStylesCommon.fieldLabel}>VIN Number</Text>
+            <TextInput
+              style={accountStylesCommon.input}
+              placeholder="Enter VIN"
+              placeholderTextColor="#8F96A3"
+              value={vinNumber}
+              onChangeText={(value) => {
+                setVinNumber(value.toUpperCase());
+                setVinVerification('');
+              }}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              maxLength={17}
+              onEndEditing={verifyVin}
+            />
 
-        {vinVerification !== '' && (
-          <Text style={{ color: vinVerification.startsWith('Verified:') ? '#328F7D' : '#D9534F', marginTop: 6 }}>
-            {isVerifyingVin ? 'Checking VIN...' : vinVerification}
-          </Text>
-        )}
+            {vinVerification !== '' && (
+              <Text style={{ color: vinVerification.startsWith('Verified:') ? '#328F7D' : '#D9534F', marginTop: 6 }}>
+                {isVerifyingVin ? 'Checking VIN...' : vinVerification}
+              </Text>
+            )}
 
-        <Text style={accountStylesCommon.fieldLabel}>Truck Photo</Text>
-        <Pressable
-          style={accountStyles.photoButton}
-          onPress={pickTruckPhoto}
-        >
-          <Text style={accountStyles.photoButtonText}>
-            {truckPhoto ? 'Change Truck Photo' : 'Add Truck Photo'}
-          </Text>
-        </Pressable>
+            <Text style={accountStylesCommon.fieldLabel}>Truck Photo</Text>
+            <Pressable
+              style={accountStyles.photoButton}
+              onPress={pickTruckPhoto}
+            >
+              <Text style={accountStyles.photoButtonText}>
+                {truckPhoto ? 'Change Truck Photo' : 'Add Truck Photo'}
+              </Text>
+            </Pressable>
 
-        {truckPhoto && (
-          <Image
-            source={{ uri: truckPhoto }}
-            style={accountStyles.truckPhoto}
-            resizeMode="cover"
-          />
-        )}
+            {truckPhoto && (
+              <Image
+                source={{ uri: truckPhoto }}
+                style={accountStyles.truckPhoto}
+                resizeMode="cover"
+              />
+            )}
+            </>
+          )}
       </View>
       )}
 
       {/* Driver's License */}
       {(hasAccount || accountMode === 'open') && (
-        <View style={accountStylesCommon.section}>
-          <View style={accountStylesCommon.sectionHeading}>
-            <MaterialCommunityIcons
-              name="card-account-details-outline"
-              size={23}
-              color="#D8DCE3"
-            />
-            <Text style={accountStylesCommon.sectionTitle}>
-              Driver&apos;s License
-            </Text>
-            {hasAccount && (
+        <View style={[accountStylesCommon.section, 
+                      !licenseExpanded && accountStylesCommon.sectionCollapsed,]}>
+          <Pressable
+            onPress={() => setLicenseExpanded((expanded) => !expanded)}
+            style={accountStylesCommon.sectionHeader}
+          >
+            <View style={[accountStylesCommon.sectionHeading,
+                          !licenseExpanded && accountStylesCommon.sectionHeadingCollapsed,]}>
               <MaterialCommunityIcons
-                name={driver?.licenseStatus ? 'check-circle' : 'circle-outline'}
-                size={22}
-                color={driver?.licenseStatus ? '#328F7D' : '#8F96A3'}
-                style={{ marginLeft: 'auto' }}
+                name="card-account-details-outline"
+                size={23}
+                color="#D8DCE3"
               />
-            )}
-          </View>
+              <Text style={accountStylesCommon.sectionTitle}>Driver&apos;s License</Text>
+              {hasAccount && (
+                <MaterialCommunityIcons
+                  name={driver?.licenseStatus ? 'check-circle' : 'circle-outline'}
+                  size={22}
+                  color={driver?.licenseStatus ? '#328F7D' : '#8F96A3'}
+                  style={{ marginLeft: 'auto' }}
+                />
+              )}
+            </View>
+            <MaterialCommunityIcons
+              name={licenseExpanded ? 'chevron-up' : 'chevron-down'}
+              size={24}
+              color="#B8BCC4"
+            />
+          </Pressable>
 
-          <Text style={accountStylesCommon.fieldLabel}>Number</Text>
-          <TextInput
-            style={accountStylesCommon.input}
-            placeholder="Enter license number"
-            placeholderTextColor="#888"
-            value={licenseNumber}
-            onChangeText={setLicenseNumber}
-          />
+          {licenseExpanded && (
+            <>
+            <Text style={accountStylesCommon.fieldLabel}>Number</Text>
+            <TextInput
+              style={accountStylesCommon.input}
+              placeholder="Enter license number"
+              placeholderTextColor="#888"
+              value={licenseNumber}
+              onChangeText={setLicenseNumber}
+            />
 
-          <Text style={accountStylesCommon.fieldLabel}>Expiration Date</Text>
-          <TextInput
-            style={accountStylesCommon.input}
-            placeholder="MM/DD/YYYY"
-            placeholderTextColor="#888"
-            value={licenseExpirationDate}
-            onChangeText={setLicenseExpirationDate}
-          />
+            <Text style={accountStylesCommon.fieldLabel}>Expiration Date</Text>
+            <TextInput
+              style={accountStylesCommon.input}
+              placeholder="MM/DD/YYYY"
+              placeholderTextColor="#888"
+              value={licenseExpirationDate}
+              onChangeText={setLicenseExpirationDate}
+            />
 
-          <Text style={accountStylesCommon.fieldLabel}>State</Text>
-          <TextInput
-            style={accountStylesCommon.input}
-            placeholder="Enter license state"
-            placeholderTextColor="#888"
-            value={licenseState}
-            onChangeText={setLicenseState}
-          />
+            <Text style={accountStylesCommon.fieldLabel}>State</Text>
+            <TextInput
+              style={accountStylesCommon.input}
+              placeholder="Enter license state"
+              placeholderTextColor="#888"
+              value={licenseState}
+              onChangeText={setLicenseState}
+            />
 
-          <Text style={accountStylesCommon.fieldLabel}>Date of Birth</Text>
-          <TextInput
-            style={accountStylesCommon.input}
-            placeholder="MM/DD/YYYY"
-            placeholderTextColor="#888"
-            value={dateOfBirth}
-            onChangeText={setDateOfBirth}
-          />
+            <Text style={accountStylesCommon.fieldLabel}>Date of Birth</Text>
+            <TextInput
+              style={accountStylesCommon.input}
+              placeholder="MM/DD/YYYY"
+              placeholderTextColor="#888"
+              value={dateOfBirth}
+              onChangeText={setDateOfBirth}
+            />
+            </>
+          )}
         </View>
       )}
 
       {/* Insurance */}
       {(hasAccount || accountMode === 'open') && (
-        <View style={accountStylesCommon.section}>
-          <View style={accountStylesCommon.sectionHeading}>
-            <MaterialCommunityIcons
-              name="shield-check-outline"
-              size={23}
-              color="#D8DCE3"
-            />
-            <Text style={accountStylesCommon.sectionTitle}>Insurance</Text>
-            {hasAccount && (
+        <View style={[accountStylesCommon.section, 
+                      !insuranceExpanded && accountStylesCommon.sectionCollapsed,]}>
+          <Pressable
+            onPress={() => setInsuranceExpanded((expanded) => !expanded)}
+            style={accountStylesCommon.sectionHeader}
+          >
+            <View style={[accountStylesCommon.sectionHeading,
+                          !insuranceExpanded && accountStylesCommon.sectionHeadingCollapsed,]}>
               <MaterialCommunityIcons
-                name={driver?.insuranceStatus ? 'check-circle' : 'circle-outline'}
-                size={22}
-                color={driver?.insuranceStatus ? '#328F7D' : '#8F96A3'}
-                style={{ marginLeft: 'auto' }}
+                name="shield-check-outline"
+                size={23}
+                color="#D8DCE3"
               />
-            )}
-          </View>
+              <Text style={accountStylesCommon.sectionTitle}>Insurance</Text>
+              {hasAccount && (
+                <MaterialCommunityIcons
+                  name={driver?.licenseStatus ? 'check-circle' : 'circle-outline'}
+                  size={22}
+                  color={driver?.licenseStatus ? '#328F7D' : '#8F96A3'}
+                  style={{ marginLeft: 'auto' }}
+                />
+              )}
+            </View>
+            <MaterialCommunityIcons
+              name={insuranceExpanded ? 'chevron-up' : 'chevron-down'}
+              size={24}
+              color="#B8BCC4"
+            />
+          </Pressable>
 
-          <Text style={accountStylesCommon.fieldLabel}>Insurance Provider</Text>
-          <TextInput
-            ref={insuranceProviderRef}
-            style={accountStylesCommon.input}
-            placeholder="Enter insurance provider"
-            placeholderTextColor="#888"
-            value={insuranceCompany}
-            onChangeText={setInsuranceCompany}
-            onFocus={() => setInsuranceProviderFocused(true)}
-            onBlur={() => setInsuranceProviderFocused(false)}
-          />
+          {insuranceExpanded && (
+            <>
+            <Text style={accountStylesCommon.fieldLabel}>Insurance Provider</Text>
+            <TextInput
+              ref={insuranceProviderRef}
+              style={accountStylesCommon.input}
+              placeholder="Enter insurance provider"
+              placeholderTextColor="#888"
+              value={insuranceCompany}
+              onChangeText={setInsuranceCompany}
+              onFocus={() => setInsuranceProviderFocused(true)}
+              onBlur={() => setInsuranceProviderFocused(false)}
+            />            
+            <Text style={accountStylesCommon.fieldLabel}>Policy Number</Text>
+            <TextInput
+              style={accountStylesCommon.input}
+              placeholder="Enter policy number"
+              placeholderTextColor="#888"
+              value={insurancePolicy}
+              onChangeText={setInsurancePolicy}
+            />
 
-          <Text style={accountStylesCommon.fieldLabel}>Policy Number</Text>
-          <TextInput
-            style={accountStylesCommon.input}
-            placeholder="Enter policy number"
-            placeholderTextColor="#888"
-            value={insurancePolicy}
-            onChangeText={setInsurancePolicy}
-          />
-
-          <Text style={accountStylesCommon.fieldLabel}>Expiration Date</Text>
-          <TextInput
-            style={accountStylesCommon.input}
-            placeholder="MM/DD/YYYY"
-            placeholderTextColor="#8F96A3"
-            value={insuranceExpirationDate}
-            onChangeText={setInsuranceExpirationDate}
-            keyboardType="numbers-and-punctuation"
-            maxLength={10}
-          />
+            <Text style={accountStylesCommon.fieldLabel}>Expiration Date</Text>
+            <TextInput
+              style={accountStylesCommon.input}
+              placeholder="MM/DD/YYYY"
+              placeholderTextColor="#8F96A3"
+              value={insuranceExpirationDate}
+              onChangeText={setInsuranceExpirationDate}
+              keyboardType="numbers-and-punctuation"
+              maxLength={10}
+            />
+            </>
+          )}
         </View>
       )}
 
@@ -1095,145 +1162,193 @@ export default function DriverAccountScreen() {
 
       {/* Payout Settings */}
       {hasAccount && (
-        <View style={accountStylesCommon.section}>
-          <View style={accountStylesCommon.sectionHeading}>
-            <MaterialCommunityIcons
-              name="wallet-outline"
-              size={23}
-              color="#D8DCE3"
-            />
-            <Text style={accountStylesCommon.sectionTitle}>
-              Payout Settings
-            </Text>
-            <MaterialCommunityIcons
-              name={payoutStatus === 'ready' ? 'check-circle' : 'circle-outline'}
-              size={22}
-              color={payoutStatus === 'ready' ? '#328F7D' : '#8F96A3'}
-              style={{ marginLeft: 'auto' }}
-            />
-          </View>
-
-          <Text style={accountStyles.payoutDescription}>
-            Set up your payout account with our payment provider
-            to receive payments from Laster. Your driver application
-            is not complete until you finish this setup.
-          </Text>
-
-          <Text style={accountStyles.payoutDescription}>
-            {payoutStatus === 'checking' &&
-              'Checking Stripe payout status...'}
-            {payoutStatus === 'ready' &&
-              'Stripe payout account is ready.'}
-            {payoutStatus === 'required' &&
-              'Complete the remaining Stripe setup steps.'}
-            {payoutStatus === 'restricted' &&
-              'Your Stripe account is not yet ready for payouts.'}
-            {payoutStatus === 'error' &&
-              'Unable to verify Stripe status. Please try again.'}
-          </Text>
-
+        <View style={[accountStylesCommon.section, 
+                      !payoutSettingsExpanded && accountStylesCommon.sectionCollapsed,]}>
           <Pressable
-            style={accountStyles.actionRow}
-            onPress={setUpPayouts}
-            disabled={payoutLoading}
+            onPress={() => setPayoutSettingsExpanded((expanded) => !expanded)}
+            style={accountStylesCommon.sectionHeader}
           >
-            <Text style={accountStyles.actionRowText}>
-              {payoutLoading
-                ? 'Opening Payout Settings...'
-                : payoutStatus === 'required'
-                  ? 'Continue Stripe Setup'
-                  : 'Set Up Payouts'}
-            </Text>
+            <View style={[accountStylesCommon.sectionHeading,
+                          !payoutSettingsExpanded && accountStylesCommon.sectionHeadingCollapsed,]}>
+              <MaterialCommunityIcons
+                name="wallet-outline"
+                size={23}
+                color="#D8DCE3"
+              />
+              <Text style={accountStylesCommon.sectionTitle}>Payout Settings</Text>
+              {hasAccount && (
+                <MaterialCommunityIcons
+                  name={driver?.licenseStatus ? 'check-circle' : 'circle-outline'}
+                  size={22}
+                  color={driver?.licenseStatus ? '#328F7D' : '#8F96A3'}
+                  style={{ marginLeft: 'auto' }}
+                />
+              )}
+            </View>
             <MaterialCommunityIcons
-              name="chevron-right"
+              name={payoutSettingsExpanded ? 'chevron-up' : 'chevron-down'}
               size={24}
-              color="#8F96A3"
+              color="#B8BCC4"
             />
           </Pressable>
+
+          {payoutSettingsExpanded && (
+            <>
+            <Text style={accountStyles.payoutDescription}>
+              Set up your payout account with our payment provider
+              to receive payments from Laster. Your driver application
+              is not complete until you finish this setup.
+            </Text>
+
+            <Text style={accountStyles.payoutDescription}>
+              {payoutStatus === 'checking' &&
+                'Checking Stripe payout status...'}
+              {payoutStatus === 'ready' &&
+                'Stripe payout account is ready.'}
+              {payoutStatus === 'required' &&
+                'Complete the remaining Stripe setup steps.'}
+              {payoutStatus === 'restricted' &&
+                'Your Stripe account is not yet ready for payouts.'}
+              {payoutStatus === 'error' &&
+                'Unable to verify Stripe status. Please try again.'}
+            </Text>
+
+            <Pressable
+              style={accountStyles.actionRow}
+              onPress={setUpPayouts}
+              disabled={payoutLoading}
+            >
+              <Text style={accountStyles.actionRowText}>
+                {payoutLoading
+                  ? 'Opening Payout Settings...'
+                  : payoutStatus === 'required'
+                    ? 'Continue Stripe Setup'
+                    : 'Set Up Payouts'}
+              </Text>
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={24}
+                color="#8F96A3"
+              />
+            </Pressable>
+            </>
+          )}
         </View>
       )}
 
       {/* Rating */}
       {hasAccount && driver?.rating != null && (
-        <View style={accountStylesCommon.section}>
-          {/* <Text style={accountStyles.sectionTitle}>Rating</Text> */}
-          <View style={accountStylesCommon.sectionHeading}>
+        <View style={[accountStylesCommon.section, 
+                      !ratingExpanded && accountStylesCommon.sectionCollapsed,]}>
+          <Pressable
+            onPress={() => setRatingExpanded((expanded) => !expanded)}
+            style={accountStylesCommon.sectionHeader}
+          >
+            <View style={[accountStylesCommon.sectionHeading,
+                          !ratingExpanded && accountStylesCommon.sectionHeadingCollapsed,]}>
+              <MaterialCommunityIcons
+                name="star"
+                size={23}
+                color="#D8DCE3"
+              />
+              <Text style={accountStylesCommon.sectionTitle}>Rating</Text>
+            </View>
             <MaterialCommunityIcons
-              name="star"
-              size={23}
-              color="#E7B94C"
+              name={ratingExpanded ? 'chevron-up' : 'chevron-down'}
+              size={24}
+              color="#B8BCC4"
             />
-            <Text style={accountStylesCommon.sectionTitle}>Rating</Text>
-          </View>
-          <Text style={accountStylesCommon.fieldLabel}>
-            {driver.rating.toFixed(1)} / 5
-          </Text>
+          </Pressable>
+
+          {ratingExpanded && (
+            <>
+            <Text style={accountStylesCommon.fieldLabel}>
+              {driver.rating.toFixed(1)} / 5
+            </Text>
+            </>
+          )}          
         </View>
       )}
 
       {/* Trip History */}
       {hasAccount && (
-        <View style={accountStylesCommon.section}>
-          <View style={accountStylesCommon.sectionHeading}>
+        <View style={[accountStylesCommon.section, 
+                      !tripHistoryExpanded && accountStylesCommon.sectionCollapsed,]}>
+          <Pressable
+            onPress={() => setTripHistoryExpanded((expanded) => !expanded)}
+            style={accountStylesCommon.sectionHeader}
+          >
+            <View style={[accountStylesCommon.sectionHeading,
+                          !tripHistoryExpanded && accountStylesCommon.sectionHeadingCollapsed,]}>
+              <MaterialCommunityIcons
+                name="history"
+                size={23}
+                color="#D8DCE3"
+              />
+              <Text style={accountStylesCommon.sectionTitle}>Trip History</Text>
+            </View>
             <MaterialCommunityIcons
-              name="history"
-              size={23}
-              color="#D8DCE3"
+              name={tripHistoryExpanded ? 'chevron-up' : 'chevron-down'}
+              size={24}
+              color="#B8BCC4"
             />
-            <Text style={accountStylesCommon.sectionTitle}>Trip History</Text>
-          </View>
+          </Pressable>
 
-          {driverTrips.length === 0 ? (
-            <Text style={accountStylesCommon.emptyText}>
-              No trip history.
-            </Text>
-          ) : (
-            driverTrips.map((trip) => (
-              <View
-                key={trip.tripID}
-                style={accountStylesCommon.tripRow}
-              >
-                <View>
-                  <Text style={accountStylesCommon.tripDate}>
-                    {formatTripDate(trip.requestedAt)}
-                  </Text>
-
-                  <Text style={accountStylesCommon.tripRoute}>
-                    Status: {trip.status}
-                  </Text>
-
-                  {trip.customerFirstName && (
-                    <Text style={accountStylesCommon.tripRoute}>
-                      Customer: {trip.customerFirstName}
+          {tripHistoryExpanded && (
+            <>
+            {driverTrips.length === 0 ? (
+              <Text style={accountStylesCommon.emptyText}>
+                No trip history.
+              </Text>
+            ) : (
+              driverTrips.map((trip) => (
+                <View
+                  key={trip.tripID}
+                  style={accountStylesCommon.tripRow}
+                >
+                  <View>
+                    <Text style={accountStylesCommon.tripDate}>
+                      {formatTripDate(trip.requestedAt)}
                     </Text>
-                  )}
 
-                  <Text style={accountStylesCommon.tripRoute}>
-                    Cargo: {trip.cargo || '...'}
-                  </Text>
+                    <Text style={accountStylesCommon.tripRoute}>
+                      Status: {trip.status}
+                    </Text>
 
-                  <Text style={accountStylesCommon.tripRoute}>
-                    Distance:{' '}
-                    {trip.distance !== null
-                      ? `${trip.distance.toFixed(2)} mi`
+                    {trip.customerFirstName && (
+                      <Text style={accountStylesCommon.tripRoute}>
+                        Customer: {trip.customerFirstName}
+                      </Text>
+                    )}
+
+                    <Text style={accountStylesCommon.tripRoute}>
+                      Cargo: {trip.cargo || '...'}
+                    </Text>
+
+                    <Text style={accountStylesCommon.tripRoute}>
+                      Distance:{' '}
+                      {trip.distance !== null
+                        ? `${trip.distance.toFixed(2)} mi`
+                        : '...'}
+                    </Text>
+
+                    <Text style={accountStylesCommon.tripRoute}>
+                      Rating:{' '}
+                      {trip.driverRating != null
+                        ? `${trip.driverRating}/5`
+                        : 'Not rated'}
+                    </Text>
+                  </View>
+
+                  <Text style={accountStylesCommon.tripFare}>
+                    {trip.payout !== null
+                      ? `$${trip.payout.toFixed(2)}`
                       : '...'}
                   </Text>
-
-                  <Text style={accountStylesCommon.tripRoute}>
-                    Rating:{' '}
-                    {trip.driverRating != null
-                      ? `${trip.driverRating}/5`
-                      : 'Not rated'}
-                  </Text>
                 </View>
-
-                <Text style={accountStylesCommon.tripFare}>
-                  {trip.payout !== null
-                    ? `$${trip.payout.toFixed(2)}`
-                    : '...'}
-                </Text>
-              </View>
-            ))
+              ))
+            )}
+            </>
           )}
         </View>
       )}
