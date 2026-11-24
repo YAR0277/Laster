@@ -6,7 +6,6 @@ import { styles as commonStyles } from '../../../Common/src/components/common';
 import CustomerAccountButton from '../../components/CustomerAccountButton';
 import { styles as indexStyles } from '../../components/index';
 import { useAuth } from '../../data/auth';
-import { useCustomer } from '../../data/customer';
 import { supabase } from '../../lib/supabase';
 
 export default function HomeScreen() {
@@ -16,8 +15,7 @@ export default function HomeScreen() {
   const [pickupsAvailable, setPickupsAvailable] = useState<number | null>(null);
   const [averageDistance, setAverageDistance] = useState<number | null>(null);
   const { user } = useAuth();
-  const { customer } = useCustomer();
-
+  
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;

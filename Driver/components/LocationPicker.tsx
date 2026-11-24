@@ -1,23 +1,23 @@
 
 import * as Location from 'expo-location';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Button,
-    Keyboard,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Button,
+  Keyboard,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import MapView, {
-    Marker,
-    type MapPressEvent,
-    type Region,
+  Marker,
+  type MapPressEvent,
+  type Region,
 } from 'react-native-maps';
 
 export type SelectedLocation = {
@@ -70,7 +70,7 @@ export default function LocationPicker({
     longitude: number
   ) => `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
 
-  const reverseGeocode = async (
+  const reverseGeocode = useCallback(async (
     latitude: number,
     longitude: number
   ): Promise<string | null> => {
@@ -92,9 +92,9 @@ export default function LocationPicker({
     } catch {
       return null;
     }
-  };
+  }, []);
 
-  const selectCoordinates = async (
+  const selectCoordinates = useCallback(async (
     latitude: number,
     longitude: number,
     address?: string
@@ -129,9 +129,9 @@ export default function LocationPicker({
         setQuery(resolved);
       }
     }
-  };
+  }, [reverseGeocode]);
 
-  const locateMe = async () => {
+  const locateMe = useCallback(async () => {
     setLocating(true);
     setError('');
 
@@ -155,7 +155,7 @@ export default function LocationPicker({
     } finally {
       setLocating(false);
     }
-  };
+  }, [selectCoordinates]);
 
   useEffect(() => {
     if (visible) {
@@ -170,7 +170,7 @@ export default function LocationPicker({
 
       void locateMe();
     }
-  }, [visible]);
+  }, [visible, locateMe]);
 
   const searchAddresses = async () => {
     Keyboard.dismiss();

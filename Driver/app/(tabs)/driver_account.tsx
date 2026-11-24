@@ -122,47 +122,6 @@ export default function DriverAccountScreen() {
     }
   };
 
-  const captureDocumentPhoto = async (
-    setPhoto: (uri: string) => void
-  ) => {
-    try {
-      console.log('Camera: requesting permission');
-
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-
-      if (!permission.granted) {
-        Alert.alert(
-          'Camera Permission',
-          'LasterDriver needs camera access to photograph your documents.'
-        );
-        return;
-      }
-
-      console.log('Camera: launching');
-
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 1,
-      });
-
-      console.log('Camera: returned', result.canceled);
-
-      if (!result.canceled && result.assets?.length > 0) {
-        console.log('Camera: image URI', result.assets[0].uri);
-        setPhoto(result.assets[0].uri);
-        console.log('Camera: photo state update requested');
-      }
-    } catch (error) {
-      console.error('Camera error:', error);
-
-      Alert.alert(
-        'Camera Error',
-        error instanceof Error ? error.message : 'Unable to capture photo.'
-      );
-    }
-  };
-
   const verifyVin = async () => {
     const vin = vinNumber.trim().toUpperCase();
 
@@ -197,7 +156,7 @@ export default function DriverAccountScreen() {
       setVinVerification(
         `Verified: ${vehicle.ModelYear || 'Year unknown'} ${vehicle.Make} ${vehicle.Model}`
       );
-    } catch (error) {
+    } catch {
       setVinVerification(
         'Unable to verify VIN. Please try again.'
       );
@@ -205,45 +164,6 @@ export default function DriverAccountScreen() {
       setIsVerifyingVin(false);
     }
   };
-
-  const documentPhotoControl = (
-    title: string,
-    photo: string | null,
-    setPhoto: (uri: string) => void
-  ) => (
-    <View style={{ marginTop: 12 }}>
-      <Text style={accountStylesCommon.fieldLabel}>
-        {title}
-      </Text>
-
-      <Pressable
-        onPress={() => captureDocumentPhoto(setPhoto)}
-        style={accountStyles.photoButton}
-      >
-        <MaterialCommunityIcons
-          name="camera-outline"
-          size={20}
-          color="#FFFFFF"
-        />
-        <Text style={accountStyles.photoButtonText}>
-          {photo ? 'Retake Photo' : 'Take Photo'}
-        </Text>
-      </Pressable>
-
-      {photo && (
-        <Image
-          source={{ uri: photo }}
-          style={{
-            width: '100%',
-            height: 180,
-            marginTop: 10,
-            borderRadius: 8,
-          }}
-          resizeMode="contain"
-        />
-      )}
-    </View>
-  );
 
   const driverTrips = trips
     .filter(

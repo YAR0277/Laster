@@ -13,23 +13,10 @@ export default function HomeScreen() {
   const { driver } = useDriver();
   const { trips, refreshTrips } = useTrip();
   const [menuVisible, setMenuVisible] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
-      let active = true;
-
-      const refresh = async () => {
-        if (active) setRefreshing(true);
-        await refreshTrips();
-        if (active) setRefreshing(false);
-      };
-
-      void refresh();
-
-      return () => {
-        active = false;
-      };
+      void refreshTrips();
     }, [refreshTrips])
   );
 

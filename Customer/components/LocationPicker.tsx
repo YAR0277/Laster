@@ -310,6 +310,11 @@ export default function LocationPicker({
             returnKeyType="search"
           />
           <Button
+            title={locating ? 'Locating...' : 'My Location'}
+            onPress={() => void locateMe()}
+            disabled={locating || searching}
+          />          
+          <Button
             title={searching ? '...' : 'Search'}
             onPress={() => void searchLocations(query, true)}
             disabled={searching}

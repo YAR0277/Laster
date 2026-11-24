@@ -23,9 +23,6 @@ const MAPPING = {
   'chevron.right': 'chevron-right',
 } as IconMapping;
 
-const COMMUNITY_MAPPING = {
-  'car-pickup': 'car-pickup',
-} as const;
 /**
  * An icon component that uses native SF Symbols on iOS, and Material Icons on Android and web.
  * This ensures a consistent look across platforms, and optimal resource usage.

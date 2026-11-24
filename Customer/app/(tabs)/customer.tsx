@@ -289,7 +289,6 @@ export default function RenterScreen() {
     }
   };
 
-  const fare = currentTrip?.fare ?? null;
   const status = currentTrip?.status ?? 'Not submitted';
   const router = useRouter();
 

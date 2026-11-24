@@ -57,7 +57,6 @@ export default function PayoutsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [scheduleExpanded, setScheduleExpanded] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(false);
-  const [processingTransferId, setProcessingTransferId] = useState<string | null>(null);
   const [pendingPayoutKeys, setPendingPayoutKeys] = useState<Record<string, string>>({});
   const loadPayoutData = useCallback(async () => {
     if (!driver) {
@@ -202,8 +201,6 @@ export default function PayoutsScreen() {
               [transfer.transfer_id]: idempotencyKey,
             }));
 
-            setProcessingTransferId(transfer.transfer_id);
-
             try {
               const { error } = await supabase.functions.invoke(
                 'create-driver-payout',
@@ -237,7 +234,6 @@ export default function PayoutsScreen() {
                 'Unable to submit your payout request. Please try again.'
               );
             } finally {
-              setProcessingTransferId(null);
             }
           },
         },
