@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -50,8 +50,6 @@ export default function DriverAccountScreen() {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [insurancePolicy, setInsurancePolicy] = useState('');
   const [insuranceCompany, setInsuranceCompany] = useState('');
-  const [insuranceProviderFocused, setInsuranceProviderFocused] = useState(false);
-  const insuranceProviderRef = useRef<TextInput>(null);
   const [insuranceExpirationDate, setInsuranceExpirationDate] = useState('');
   const [accountMode, setAccountMode] = useState<'login' | 'open'>('login');
   const hasAccount = supabaseAuthUser !== null && driver !== null;
@@ -272,14 +270,6 @@ export default function DriverAccountScreen() {
       void verifyPayoutStatus();
     }
   }, [payout, hasAccount, verifyPayoutStatus]);
-
-  useEffect(() => {
-    if (!insuranceProviderFocused) {
-      insuranceProviderRef.current?.setNativeProps({
-        selection: { start: 0, end: 0 },
-      });
-    }
-  }, [insuranceCompany, insuranceProviderFocused]);
 
   useEffect(() => {
     if (driver) {
@@ -1114,14 +1104,11 @@ export default function DriverAccountScreen() {
             <>
             <Text style={accountStylesCommon.fieldLabel}>Insurance Provider</Text>
             <TextInput
-              ref={insuranceProviderRef}
               style={accountStylesCommon.input}
               placeholder="Enter insurance provider"
               placeholderTextColor="#888"
               value={insuranceCompany}
               onChangeText={setInsuranceCompany}
-              onFocus={() => setInsuranceProviderFocused(true)}
-              onBlur={() => setInsuranceProviderFocused(false)}
             />            
             <Text style={accountStylesCommon.fieldLabel}>Policy Number</Text>
             <TextInput
