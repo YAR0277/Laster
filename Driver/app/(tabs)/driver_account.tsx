@@ -226,6 +226,8 @@ export default function DriverAccountScreen() {
       setInsurancePolicy('');
       setInsuranceCompany('');
       setInsuranceExpirationDate('');
+      setVinVerification('');
+      setIsVerifyingVin(false);
     }
   }, [driver]);
 
@@ -1107,30 +1109,13 @@ export default function DriverAccountScreen() {
               is not complete until you finish this setup.
             </Text>
 
-            <Text style={accountStyles.payoutDescription}>
-              {payoutStatus === 'checking' &&
-                'Checking Stripe payout status...'}
-              {payoutStatus === 'ready' &&
-                'Stripe payout account is ready.'}
-              {payoutStatus === 'required' &&
-                'Complete the remaining Stripe setup steps.'}
-              {payoutStatus === 'restricted' &&
-                'Your Stripe account is not yet ready for payouts.'}
-              {payoutStatus === 'error' &&
-                'Unable to verify Stripe status. Please try again.'}
-            </Text>
-
             <Pressable
               style={accountStyles.actionRow}
               onPress={setUpPayouts}
               disabled={payoutLoading}
             >
               <Text style={accountStyles.actionRowText}>
-                {payoutLoading
-                  ? 'Opening Payout Settings...'
-                  : payoutStatus === 'required'
-                    ? 'Continue Stripe Setup'
-                    : 'Set Up Payouts'}
+                {payoutLoading ? 'Opening Payout Settings...' : 'Go To Setup'}
               </Text>
               <MaterialCommunityIcons
                 name="chevron-right"
