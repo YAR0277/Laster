@@ -78,7 +78,11 @@ export function DriverProvider({ children }: { children: ReactNode }) {
       if (!isActive) return;
 
       if (error) {
-        setDriver(null);
+        setDriver((current) =>
+          current?.driverID === supabaseAuthUser.id
+            ? current
+            : null
+        );
         setLoading(false);
         return;
       }

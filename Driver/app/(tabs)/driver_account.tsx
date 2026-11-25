@@ -1006,9 +1006,9 @@ export default function DriverAccountScreen() {
               <Text style={accountStylesCommon.sectionTitle}>Insurance</Text>
               {hasAccount && (
                 <MaterialCommunityIcons
-                  name={driver?.licenseStatus ? 'check-circle' : 'circle-outline'}
+                  name={driver?.insuranceStatus ? 'check-circle' : 'circle-outline'}
                   size={22}
-                  color={driver?.licenseStatus ? '#328F7D' : '#8F96A3'}
+                  color={driver?.insuranceStatus ? '#328F7D' : '#8F96A3'}
                   style={{ marginLeft: 'auto' }}
                 />
               )}
@@ -1085,9 +1085,9 @@ export default function DriverAccountScreen() {
               <Text style={accountStylesCommon.sectionTitle}>Payout Settings</Text>
               {hasAccount && (
                 <MaterialCommunityIcons
-                  name={driver?.licenseStatus ? 'check-circle' : 'circle-outline'}
+                  name={driver?.payoutStatus ? 'check-circle' : 'circle-outline'}
                   size={22}
-                  color={driver?.licenseStatus ? '#328F7D' : '#8F96A3'}
+                  color={driver?.payoutStatus ? '#328F7D' : '#8F96A3'}
                   style={{ marginLeft: 'auto' }}
                 />
               )}
