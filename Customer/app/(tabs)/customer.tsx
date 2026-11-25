@@ -1,19 +1,11 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { File } from 'expo-file-system';
-import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import {
-  Alert,
-  Image,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Image, Pressable, ScrollView, Text, TextInput, View, } from 'react-native';
 import 'react-native-get-random-values';
+import ImageCropPicker from 'react-native-image-crop-picker';
 import { v4 as uuidv4 } from 'uuid';
 import { styles as accountStylesCommon } from '../../../Common/src/components/account';
 import { styles as commonStyles } from '../../../Common/src/components/common';
@@ -267,25 +259,23 @@ export default function RenterScreen() {
   };
 
   const pickCargoPhoto = async () => {
-    const permission =
-      await ImagePicker.requestCameraPermissionsAsync();
+    try {
+      const image = await ImageCropPicker.openCamera({
+        mediaType: 'photo',
+        cropping: false,
+        compressImageQuality: 0.8,
+      });
 
-    if (!permission.granted) {
-      Alert.alert(
-        'Camera Permission',
-        'Please allow camera access to take a cargo photo.'
-      );
-      return;
-    }
+      setCargoPhoto(image.path);
+    } catch (error) {
+      const pickerError = error as { code?: string };
 
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      allowsEditing: false,
-      quality: 0.8,
-    });
+      if (pickerError.code === 'E_PICKER_CANCELLED') {
+        return;
+      }
 
-    if (!result.canceled && result.assets?.length > 0) {
-      setCargoPhoto(result.assets[0].uri);
+      console.error('Cargo photo error:', error);
+      Alert.alert('Camera Error', 'Unable to take the cargo photo.');
     }
   };
 
