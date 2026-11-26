@@ -27,7 +27,7 @@ export default function RenterScreen() {
   const [phone, setPhone] = useState('');
   const [payment, setPayment] = useState('');
   const [currentTripID, setCurrentTripID] = useState<string | null>(null);
-
+  const [currentTripRestored, setCurrentTripRestored] = useState(false);
   const { trips, setTrips } = useTrip();
   const { customer } = useCustomer();
   const currentTripStorageKey = customer?.customerID ? `laster_current_trip_id_${customer.customerID}`: null;
@@ -147,16 +147,94 @@ export default function RenterScreen() {
   }, [supabaseAuthUser, customer]);
 
   useEffect(() => {
-    const restoreCurrentTrip = async () => {
-      if (!currentTripStorageKey) 
-        return;
-      const storedTripID = await AsyncStorage.getItem(currentTripStorageKey);
+    let cancelled = false;
 
-      setCurrentTripID(storedTripID);
+    setCurrentTripRestored(false);
+
+    if (!currentTripStorageKey) {
+      setCurrentTripID(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const restoreCurrentTrip = async () => {
+      try {
+        const storedTripID = await AsyncStorage.getItem(
+          currentTripStorageKey
+        );
+
+        if (!cancelled) {
+          setCurrentTripID(storedTripID);
+        }
+      } catch (error) {
+        console.warn('Could not restore current trip:', error);
+
+        if (!cancelled) {
+          setCurrentTripID(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setCurrentTripRestored(true);
+        }
+      }
     };
 
     void restoreCurrentTrip();
+
+    return () => {
+      cancelled = true;
+    };
   }, [currentTripStorageKey]);
+
+  useEffect(() => {
+    if (
+      !currentTripRestored ||
+      !currentTripStorageKey ||
+      trips.length === 0
+    ) {
+      return;
+    }
+
+    // Keep the saved trip if it still exists.
+    if (currentTripID && trips.some(
+      (trip) => trip.tripID === currentTripID
+    )) {
+      return;
+    }
+
+    // Otherwise, find the newest active trip.
+    const activeTrip = trips
+      .filter(
+        (trip) =>
+          trip.status === 'Requested' ||
+          trip.status === 'Accepted' ||
+          trip.status === 'Started'
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.requestedAt).getTime() -
+          new Date(a.requestedAt).getTime()
+      )[0];
+
+    if (!activeTrip) {
+      return;
+    }
+
+    setCurrentTripID(activeTrip.tripID);
+
+    void AsyncStorage.setItem(
+      currentTripStorageKey,
+      activeTrip.tripID
+    ).catch((error) => {
+      console.warn('Could not save restored trip ID:', error);
+    });
+  }, [
+    currentTripRestored,
+    currentTripStorageKey,
+    currentTripID,
+    trips,
+  ]);
 
   const currentTrip = trips.find(
     (trip) => trip.tripID === currentTripID
