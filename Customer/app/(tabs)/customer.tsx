@@ -1,11 +1,20 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { File } from 'expo-file-system';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, Text, TextInput, View, } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View
+} from 'react-native';
 import 'react-native-get-random-values';
-import ImageCropPicker from 'react-native-image-crop-picker';
 import { v4 as uuidv4 } from 'uuid';
 import { styles as accountStylesCommon } from '../../../Common/src/components/account';
 import { styles as commonStyles } from '../../../Common/src/components/common';
@@ -23,6 +32,11 @@ export default function RenterScreen() {
   const [to, setTo] = useState('');
   const [cargo, setCargo] = useState('');
   const [cargoPhoto, setCargoPhoto] = useState<string | null>(null);
+  const cameraRef = useRef<CameraView>(null);
+  const [cameraPermission, requestCameraPermission] =
+    useCameraPermissions();
+  const [cameraVisible, setCameraVisible] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);  
   const [firstName, setFirstName] = useState('');
   const [phone, setPhone] = useState('');
   const [payment, setPayment] = useState('');
@@ -338,22 +352,48 @@ export default function RenterScreen() {
 
   const pickCargoPhoto = async () => {
     try {
-      const image = await ImageCropPicker.openCamera({
-        mediaType: 'photo',
-        cropping: false,
-        compressImageQuality: 0.8,
-      });
+      if (!cameraPermission?.granted) {
+        const permission = await requestCameraPermission();
 
-      setCargoPhoto(image.path);
-    } catch (error) {
-      const pickerError = error as { code?: string };
-
-      if (pickerError.code === 'E_PICKER_CANCELLED') {
-        return;
+        if (!permission.granted) {
+          Alert.alert(
+            'Camera Permission',
+            'Laster needs camera access to photograph your cargo.'
+          );
+          return;
+        }
       }
 
-      console.error('Cargo photo error:', error);
-      Alert.alert('Camera Error', 'Unable to take the cargo photo.');
+      setCameraReady(false);
+      setCameraVisible(true);
+
+    } catch (error) {
+      console.error('Cargo camera permission error:', error);
+      Alert.alert(
+        'Camera Error',
+        'Unable to access the camera.'
+      );
+    }
+  };
+
+  const takeCargoPhoto = async () => {
+    if (!cameraReady || !cameraRef.current) return;
+
+    try {
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.8,
+      });
+
+      if (photo?.uri) {
+        setCargoPhoto(photo.uri);
+        setCameraVisible(false);
+      }
+    } catch (error) {
+      console.error('Cargo photo capture error:', error);
+      Alert.alert(
+        'Camera Error',
+        'Unable to take the cargo photo.'
+      );
     }
   };
 
@@ -1200,6 +1240,60 @@ export default function RenterScreen() {
 
         </View>
       )}
+      {/* Cargo Camera */}
+      <Modal
+        visible={cameraVisible}
+        animationType="slide"
+        onRequestClose={() => setCameraVisible(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: '#000000',
+          }}
+        >
+          <CameraView
+            ref={cameraRef}
+            style={{ flex: 1 }}
+            facing="back"
+            onCameraReady={() => setCameraReady(true)}
+          />
+
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-around',
+              alignItems: 'center',
+              padding: 20,
+              backgroundColor: '#263746',
+            }}
+          >
+            <Pressable
+              onPress={() => setCameraVisible(false)}
+              style={{ padding: 15 }}
+            >
+              <Text style={{ color: '#FFFFFF', fontSize: 16 }}>
+                Cancel
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={takeCargoPhoto}
+              disabled={!cameraReady}
+              style={{
+                backgroundColor: '#477DA5',
+                padding: 15,
+                borderRadius: 8,
+                opacity: cameraReady ? 1 : 0.5,
+              }}
+            >
+              <Text style={{ color: '#FFFFFF', fontSize: 16 }}>
+                Take Photo
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>      
     </ScrollView>
   );
 }

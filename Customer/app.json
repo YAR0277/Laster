@@ -10,7 +10,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.laster.customer"
     },
     "android": {
       "package": "com.laster.customer",
@@ -34,6 +35,12 @@
           "enableGooglePay": false
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Laster to access your camera to photograph cargo."
+        }
+      ],      
       [
         "expo-splash-screen",
         {
