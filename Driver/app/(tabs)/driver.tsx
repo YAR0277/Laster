@@ -2,7 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { formatDisplayTripID } from '@laster/common';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -20,21 +20,119 @@ import { supabase } from '../../lib/supabase';
 
 const METERS_PER_MILE = 1609.344;
 
+const distanceInMeters = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+) => {
+  const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+  const earthRadius = 6371000;
+
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(lat1)) *
+      Math.cos(toRadians(lat2)) *
+      Math.sin(dLon / 2) ** 2;
+
+  return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
 export default function DriverScreen() {
   const { trips, setTrips } = useTrip();
   const { driver, loading: driverLoading } = useDriver();
   const router = useRouter();
   const [acceptingTripID, setAcceptingTripID] = useState<string | null>(null);
-  const [startingTripID, setStartingTripID] = useState<string | null>(null);
+  const [arrivingTripID, setArrivingTripID] = useState<string | null>(null);
+  const [withinArrivalRange, setWithinArrivalRange] = useState(false);
   const [abortingTripID, setAbortingTripID] = useState<string | null>(null);
   const hasAccount = !driverLoading && driver !== null;
   const accountStatusApproved = driver?.accountStatus === true;
   const [nextStepsExpanded, setNextStepsExpanded] = useState(false);  
 
+  const activeAcceptedTrip = trips.find(
+    (trip) => trip.status === 'Accepted'
+  );
+
+  useEffect(() => {
+    let subscription: Location.LocationSubscription | null = null;
+    let cancelled = false;
+
+    const watchDriverLocation = async () => {
+      if (!driver || !activeAcceptedTrip) {
+        setWithinArrivalRange(false);
+        return;
+      }
+
+      try {
+        const { status } =
+          await Location.requestForegroundPermissionsAsync();
+
+        if (status !== 'granted') {
+          setWithinArrivalRange(false);
+          return;
+        }
+
+        const { data: pickup, error } = await supabase
+          .from('trips')
+          .select('trip_from_lat, trip_from_lon')
+          .eq('trip_id', activeAcceptedTrip.tripID)
+          .eq('driver_id', driver.driverID)
+          .maybeSingle();
+
+        if (
+          cancelled ||
+          error ||
+          !pickup ||
+          pickup.trip_from_lat == null ||
+          pickup.trip_from_lon == null
+        ) {
+          setWithinArrivalRange(false);
+          return;
+        }
+
+        subscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 4000,
+            distanceInterval: 15,
+          },
+          (position) => {
+            const distance = distanceInMeters(
+              position.coords.latitude,
+              position.coords.longitude,
+              pickup.trip_from_lat,
+              pickup.trip_from_lon
+            );
+
+            setWithinArrivalRange(distance <= 500);
+          }
+        );
+
+        if (cancelled) {
+          subscription.remove();
+        }
+      } catch (error) {
+        console.error('Driver location watcher failed:', error);
+        setWithinArrivalRange(false);
+      }
+    };
+
+    watchDriverLocation();
+
+    return () => {
+      cancelled = true;
+      subscription?.remove();
+    };
+  }, [driver?.driverID, activeAcceptedTrip?.tripID]);
+
   const hasAcceptedTrip = trips.some(
     (trip) =>
       trip.status === 'Accepted' ||
-      trip.status === 'Started'
+      trip.status === 'Arrived'
   );
 
   const acceptTrip = async (tripID: string) => {
@@ -96,7 +194,7 @@ export default function DriverScreen() {
           .from('trips')
           .select('trip_id')
           .eq('driver_id', driver.driverID)
-          .in('status', ['Accepted', 'Started'])
+          .in('status', ['Accepted', 'Arrived'])
           .limit(1)
           .maybeSingle();
 
@@ -258,55 +356,77 @@ export default function DriverScreen() {
     } finally {
       setAcceptingTripID(null);
     }
-  };      
+  };
 
-  const startTrip = async (tripID: string) => {
-    if (!driver || startingTripID !== null) return;
+  const arriveTrip = async (tripID: string) => {
+    if (
+      !driver ||
+      arrivingTripID !== null ||
+      !withinArrivalRange
+    ) {
+      return;
+    }
 
-    setStartingTripID(tripID);
+    setArrivingTripID(tripID);
 
     try {
-      const { data: updatedTrips, error } = await supabase
-        .from('trips')
-        .update({
-          status: 'Started',
-        })
-        .eq('trip_id', tripID)
-        .eq('driver_id', driver.driverID)
-        .eq('status', 'Accepted')
-        .select('trip_id');
+      // Get a fresh location; the Edge Function checks the
+      // 500-meter arrival limit again using the pickup coordinates.
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
 
-      if (error) {
-        Alert.alert(
-          'Trip Error',
-          `The trip could not be started.\n\n${error.message}`
-        );
-        return;
-      }
+      const { data, error } = await supabase.functions.invoke(
+        'arrive-trip',
+        {
+          body: {
+            tripID,
+            driverLatitude: position.coords.latitude,
+            driverLongitude: position.coords.longitude,
+          },
+        }
+      );
 
-      if (!updatedTrips || updatedTrips.length === 0) {
-        Alert.alert(
-          'Trip Not Started',
-          'The trip is no longer accepted or cannot be updated.'
-        );
+      if (error || data?.error || data?.status !== 'Arrived') {
+        let message =
+          data?.error ??
+          'Could not report your arrival. Please try again.';
+
+        if (error) {
+          try {
+            const response = error.context;
+            if (response && typeof response.json === 'function') {
+              const details = await response.json();
+              if (typeof details?.error === 'string') {
+                message = details.error;
+              }
+            }
+          } catch {
+            // Keep the fallback message.
+          }
+        }
+
+        Alert.alert('Arrival Not Reported', message);
         return;
       }
 
       setTrips((currentTrips) =>
         currentTrips.map((trip) =>
           trip.tripID === tripID
-            ? { ...trip, status: 'Started' }
+            ? { ...trip, status: 'Arrived' }
             : trip
         )
       );
+
+      setWithinArrivalRange(false);
     } catch (error) {
-      console.error('Start trip failed:', error);
+      console.error('Report arrival failed:', error);
       Alert.alert(
-        'Trip Error',
-        'An unexpected error occurred while starting the trip. Please try again.'
+        'Arrival Error',
+        'An unexpected error occurred while reporting arrival.'
       );
     } finally {
-      setStartingTripID(null);
+      setArrivingTripID(null);
     }
   };
 
@@ -364,7 +484,7 @@ export default function DriverScreen() {
     if (hasAcceptedTrip) {
       return (
         trip.status === 'Accepted' ||
-        trip.status === 'Started'
+        trip.status === 'Arrived'
       );
     }
 
@@ -566,8 +686,9 @@ export default function DriverScreen() {
                   <Text style={driverStyles.tripLabel}>From</Text>
                   {' '}to pick up {trip.customerFirstName}&apos;s {trip.cargo}.
 
-                  {'\n\n'}Once the {trip.cargo} is loaded and you&apos;re ready to go,
-                  press <Text style={driverStyles.tripLabel}>Start</Text>.
+                  {'\n\n'}When you have arrived at the pickup address,
+                  press <Text style={driverStyles.tripLabel}>I'm here</Text>
+                  {' '}to report your arrival.
 
                   {'\n\n'}If you need to{' '}
                   <Text style={driverStyles.tripLabel}>Abort</Text>,
@@ -575,26 +696,30 @@ export default function DriverScreen() {
                 </Text>
               )}
 
-              {/* Start and Abort Buttons */}
+              {/* I'm Here and Abort Buttons */}
               <View style={{ flexDirection: 'row', gap: 8 }}>
-                <Pressable
-                  style={[
-                    driverStyles.acceptButton,
-                    { flex: 1 },
-                    startingTripID !== null && { opacity: 0.6 },
-                  ]}
-                  onPress={() => startTrip(trip.tripID)}
-                  disabled={startingTripID !== null}
-                >
-                  <MaterialCommunityIcons
-                    name="play-circle"
-                    size={22}
-                    color="#FFFFFF"
-                  />
-                  <Text style={driverStyles.buttonText}>
-                    {startingTripID === trip.tripID ? 'Starting...' : 'Start'}
-                  </Text>
-                </Pressable>
+                {withinArrivalRange && (
+                  <Pressable
+                    style={[
+                      driverStyles.acceptButton,
+                      { flex: 1 },
+                      arrivingTripID !== null && { opacity: 0.6 },
+                    ]}
+                    onPress={() => arriveTrip(trip.tripID)}
+                    disabled={arrivingTripID !== null}
+                  >
+                    <MaterialCommunityIcons
+                      name="map-marker-check"
+                      size={22}
+                      color="#FFFFFF"
+                    />
+                    <Text style={driverStyles.buttonText}>
+                      {arrivingTripID === trip.tripID
+                        ? 'Reporting...'
+                        : "I'm here"}
+                    </Text>
+                  </Pressable>
+                )}
 
                 <Pressable
                   style={[
@@ -611,7 +736,9 @@ export default function DriverScreen() {
                     color="#FFFFFF"
                   />
                   <Text style={driverStyles.buttonText}>
-                    {abortingTripID === trip.tripID ? 'Aborting...' : 'Abort'}
+                    {abortingTripID === trip.tripID
+                      ? 'Aborting...'
+                      : 'Abort'}
                   </Text>
                 </Pressable>
               </View>

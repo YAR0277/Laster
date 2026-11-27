@@ -155,13 +155,13 @@ Deno.serve(async (req) => {
 
     if (
       !alreadyCompleted &&
-      (trip.status !== 'Started' ||
+      (trip.status !== 'Arrived' ||
         trip.payment_status !== 'authorized')
     ) {
       return jsonResponse(
         {
           error:
-            'Only a started trip with an authorized payment can be completed.',
+            'Only an arrived trip with an authorized payment can be completed.',
         },
         409,
       );
@@ -248,7 +248,7 @@ Deno.serve(async (req) => {
           completed_at: completedAt,
         })
         .eq('trip_id', trip.trip_id)
-        .eq('status', 'Started')
+        .eq('status', 'Arrived')
         .eq('payment_status', 'authorized')
         .select('trip_id, status, payment_status')
         .maybeSingle();

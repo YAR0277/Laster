@@ -2,7 +2,7 @@ export type TripStatus =
   | 'Not submitted'
   | 'Requested'
   | 'Accepted'
-  | 'Started'
+  | 'Arrived'
   | 'Completed'
   | 'Aborted';
 

@@ -469,3 +469,8 @@ verify_jwt = false
 
 [functions.set-driver-manual-payout-schedule]
 verify_jwt = false
+
+[functions.arrive-trip]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/arrive-trip/index.ts"

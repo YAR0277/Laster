@@ -223,7 +223,7 @@ export default function RenterScreen() {
         (trip) =>
           trip.status === 'Requested' ||
           trip.status === 'Accepted' ||
-          trip.status === 'Started'
+          trip.status === 'Arrived'
       )
       .sort(
         (a, b) =>
@@ -1096,12 +1096,12 @@ export default function RenterScreen() {
           </View>
         )}
 
-        {/* Started */}
-        {status === 'Started' && (
+        {/* Arrived */}
+        {status === 'Arrived' && (
           <>
             <View style={customerStyles.driverInfo}>
               <Text style={customerStyles.driverMessage}>
-                Your trip is in progress.
+                {(currentTrip?.driverFirstName.trim() || 'Your driver') + ' is here'}
               </Text>
 
               {currentTrip?.truckPhoto ? (
